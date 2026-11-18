@@ -71,8 +71,8 @@ public class AIAssistant extends Module {
 
     private final Setting<String> openaiModel = sgProvider.add(new StringSetting.Builder()
         .name("openai-model")
-        .description("OpenAI model.")
-        .defaultValue("gpt-4o-mini")
+        .description("Any OpenAI model ID. Examples: gpt-6.2-sol, gpt-6.2-astra.")
+        .defaultValue("gpt-6.2-sol")
         .visible(() -> provider.get() == Provider.OpenAI)
         .build()
     );
@@ -87,8 +87,8 @@ public class AIAssistant extends Module {
 
     private final Setting<String> anthropicModel = sgProvider.add(new StringSetting.Builder()
         .name("anthropic-model")
-        .description("Anthropic model.")
-        .defaultValue("claude-3-5-sonnet-latest")
+        .description("Any Anthropic model ID. Examples: claude-sonnet-5-5, claude-opus-5-5, claude-fable-5-2.")
+        .defaultValue("claude-sonnet-5-5")
         .visible(() -> provider.get() == Provider.Anthropic)
         .build()
     );
@@ -103,8 +103,8 @@ public class AIAssistant extends Module {
 
     private final Setting<String> geminiModel = sgProvider.add(new StringSetting.Builder()
         .name("gemini-model")
-        .description("Gemini model.")
-        .defaultValue("gemini-2.0-flash")
+        .description("Any Gemini model ID. Examples: gemini-4-hydrogen, gemini-4-argon, gemini-4-carbon.")
+        .defaultValue("gemini-4-hydrogen")
         .visible(() -> provider.get() == Provider.Gemini)
         .build()
     );
@@ -127,8 +127,8 @@ public class AIAssistant extends Module {
 
     private final Setting<String> customModel = sgProvider.add(new StringSetting.Builder()
         .name("custom-model")
-        .description("Model name for the custom endpoint.")
-        .defaultValue("gpt-4o-mini")
+        .description("Any model ID the custom endpoint accepts.")
+        .defaultValue("gpt-6.2-sol")
         .visible(() -> provider.get() == Provider.Custom)
         .build()
     );
@@ -136,7 +136,7 @@ public class AIAssistant extends Module {
     private final Setting<String> systemPrompt = sgPrompt.add(new StringSetting.Builder()
         .name("system-prompt")
         .description("Instructions sent with every request.")
-        .defaultValue("You are a helpful Minecraft assistant. Keep answers short and plain.")
+        .defaultValue("You are a helpful Minecraft assistant. Help with Minecraft mechanics, servers, mods, and the Meteor client. Keep answers short and plain. If you are not sure, say so.")
         .build()
     );
 
@@ -299,18 +299,18 @@ public class AIAssistant extends Module {
     private String request(Provider provider, String url, String key, String model,
                            String system, int tokens, double temp, List<Message> history) throws Exception {
         return switch (provider) {
-            case OpenAI -> openai(url, key, model, system, tokens, temp, history);
+            case OpenAI -> openai(url, key, model, system, tokens, temp, history, false);
             case Anthropic -> anthropic(url, key, model, system, tokens, temp, history);
             case Gemini -> gemini(url, key, model, system, tokens, temp, history);
-            case Custom -> openai(url, key, model, system, tokens, temp, history);
+            case Custom -> openai(url, key, model, system, tokens, temp, history, true);
         };
     }
 
     private String openai(String url, String key, String model, String system,
-                          int tokens, double temp, List<Message> history) throws Exception {
+                          int tokens, double temp, List<Message> history, boolean custom) throws Exception {
         JsonObject body = new JsonObject();
         body.addProperty("model", model);
-        body.addProperty("max_tokens", tokens);
+        body.addProperty(custom ? "max_tokens" : "max_completion_tokens", tokens);
         body.addProperty("temperature", temp);
 
         JsonArray list = new JsonArray();

@@ -14,6 +14,7 @@ Put the jar in your mods folder next to Meteor Client for 1.21.11.
 
 ## modules
 
+- `ai-assistant`: chat with a configured provider. Use `.ai <message>`; `.contextclear` resets context.
 - `infinite-reach`: teleports to distant blocks, breaks or uses them, then teleports back.
 - `instant-break`: sends the break packets and stops at the server's 0.7 finish point.
 - `phase`: teleports through walls while your hitbox is inside a block.
@@ -25,6 +26,11 @@ Put the jar in your mods folder next to Meteor Client for 1.21.11.
 TimeShift only works on 1.8 servers.
 Phase needs you to be inside a block first.
 InfiniteReach is capped at 22 blocks on vanilla.
+
+## commands
+
+    .ai <message>
+    .contextclear
 
 ## license
 

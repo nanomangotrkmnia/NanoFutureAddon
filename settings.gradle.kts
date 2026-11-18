@@ -9,4 +9,4 @@ pluginManagement {
     }
 }
 
-rootProject.name = "nanomango"
+rootProject.name = "NanoFutureAddon"

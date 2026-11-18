@@ -1,6 +1,6 @@
-package com.nanomango.addon.modules;
+package dev.nanomango.modules;
 
-import com.nanomango.addon.Nanomango;
+import dev.nanomango.NanoFutureAddon;
 import meteordevelopment.meteorclient.events.world.TickEvent;
 import meteordevelopment.meteorclient.mixininterface.IPlayerMoveC2SPacket;
 import meteordevelopment.meteorclient.settings.BoolSetting;
@@ -67,7 +67,7 @@ public class InfiniteReach extends Module {
     private int cooldownTicks;
 
     public InfiniteReach() {
-        super(Nanomango.CATEGORY, "infinite-reach",
+        super(NanoFutureAddon.CATEGORY, "infinite-reach",
             "Teleports to distant blocks to break or use them, then teleports back.");
     }
 

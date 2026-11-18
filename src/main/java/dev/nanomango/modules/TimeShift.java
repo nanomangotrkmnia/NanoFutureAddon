@@ -1,6 +1,6 @@
-package com.nanomango.addon.modules;
+package dev.nanomango.modules;
 
-import com.nanomango.addon.Nanomango;
+import dev.nanomango.NanoFutureAddon;
 import meteordevelopment.meteorclient.events.world.TickEvent;
 import meteordevelopment.meteorclient.settings.BoolSetting;
 import meteordevelopment.meteorclient.settings.DoubleSetting;
@@ -120,7 +120,7 @@ public class TimeShift extends Module {
     private boolean timerOverridden;
 
     public TimeShift() {
-        super(Nanomango.CATEGORY, "time-shift",
+        super(NanoFutureAddon.CATEGORY, "time-shift",
             "Sends movement packet bursts to speed up 1.8 server regen and effect timers.",
             "zoot", "regen");
     }

@@ -1,4 +1,4 @@
-# nanomango
+# NanoFutureAddon
 
 A Meteor Client addon for Minecraft 1.21.11. Adds a few exploit, movement, and utility modules.
 

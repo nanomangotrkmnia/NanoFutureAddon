@@ -1,6 +1,6 @@
-package com.nanomango.addon.modules;
+package dev.nanomango.modules;
 
-import com.nanomango.addon.Nanomango;
+import dev.nanomango.NanoFutureAddon;
 import meteordevelopment.meteorclient.events.entity.player.StartBreakingBlockEvent;
 import meteordevelopment.meteorclient.events.world.TickEvent;
 import meteordevelopment.meteorclient.systems.modules.Module;
@@ -19,7 +19,7 @@ public class InstantBreak extends Module {
     private int startAge;
 
     public InstantBreak() {
-        super(Nanomango.CATEGORY, "instant-break",
+        super(NanoFutureAddon.CATEGORY, "instant-break",
             "Starts the break with a packet, then repeatedly STOPs once the server considers it finished.");
     }
 

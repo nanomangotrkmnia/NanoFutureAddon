@@ -1,20 +1,20 @@
 {
   "schemaVersion": 1,
-  "id": "nanomango",
+  "id": "nanofutureaddon",
   "version": "${version}",
-  "name": "nanomango",
+  "name": "NanoFutureAddon",
   "description": "An addon for Meteor Client.",
   "authors": [
     "nanomango"
   ],
   "license": "ARR",
   "contact": {
-    "sources": "https://github.com/nanomangotrkmnia/nanomango"
+    "sources": "https://github.com/nanomangotrkmnia/NanoFutureAddon"
   },
   "environment": "client",
   "entrypoints": {
     "meteor": [
-      "com.nanomango.addon.Nanomango"
+      "dev.nanomango.NanoFutureAddon"
     ]
   },
   "custom": {

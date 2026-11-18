@@ -1,6 +1,6 @@
-package com.nanomango.addon.modules;
+package dev.nanomango.modules;
 
-import com.nanomango.addon.Nanomango;
+import dev.nanomango.NanoFutureAddon;
 import meteordevelopment.meteorclient.events.packets.PacketEvent;
 import meteordevelopment.meteorclient.events.world.TickEvent;
 import meteordevelopment.meteorclient.systems.modules.Module;
@@ -22,7 +22,7 @@ public class Phase extends Module {
     private boolean allowJumpPacket;
 
     public Phase() {
-        super(Nanomango.CATEGORY, "phase",
+        super(NanoFutureAddon.CATEGORY, "phase",
             "Teleports through walls while your hitbox is inside a block (e.g. sand on your head). Abuses the vanilla movement packet limit.",
             "noclip");
     }

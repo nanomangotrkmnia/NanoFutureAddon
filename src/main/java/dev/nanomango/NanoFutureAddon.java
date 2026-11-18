@@ -1,23 +1,23 @@
-package com.nanomango.addon;
+package dev.nanomango;
 
-import com.nanomango.addon.modules.InfiniteReach;
-import com.nanomango.addon.modules.InstantBreak;
-import com.nanomango.addon.modules.Phase;
-import com.nanomango.addon.modules.Reminder;
-import com.nanomango.addon.modules.TimeShift;
+import dev.nanomango.modules.InfiniteReach;
+import dev.nanomango.modules.InstantBreak;
+import dev.nanomango.modules.Phase;
+import dev.nanomango.modules.Reminder;
+import dev.nanomango.modules.TimeShift;
 import com.mojang.logging.LogUtils;
 import meteordevelopment.meteorclient.addons.MeteorAddon;
 import meteordevelopment.meteorclient.systems.modules.Category;
 import meteordevelopment.meteorclient.systems.modules.Modules;
 import org.slf4j.Logger;
 
-public class Nanomango extends MeteorAddon {
+public class NanoFutureAddon extends MeteorAddon {
     public static final Logger LOG = LogUtils.getLogger();
-    public static final Category CATEGORY = new Category("nanomango");
+    public static final Category CATEGORY = new Category("NanoFuture");
 
     @Override
     public void onInitialize() {
-        LOG.info("Initializing Nanomango");
+        LOG.info("Initializing NanoFutureAddon");
 
         Modules.get().add(new InfiniteReach());
         Modules.get().add(new InstantBreak());
@@ -33,6 +33,6 @@ public class Nanomango extends MeteorAddon {
 
     @Override
     public String getPackage() {
-        return "com.nanomango.addon";
+        return "dev.nanomango";
     }
 }

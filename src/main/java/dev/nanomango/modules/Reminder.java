@@ -1,6 +1,6 @@
-package com.nanomango.addon.modules;
+package dev.nanomango.modules;
 
-import com.nanomango.addon.Nanomango;
+import dev.nanomango.NanoFutureAddon;
 import meteordevelopment.meteorclient.events.world.TickEvent;
 import meteordevelopment.meteorclient.settings.EnumSetting;
 import meteordevelopment.meteorclient.settings.IntSetting;
@@ -54,7 +54,7 @@ public class Reminder extends Module {
     private long nextReminder;
 
     public Reminder() {
-        super(Nanomango.CATEGORY, "reminder", "Shows a toast with your text at a set interval.");
+        super(NanoFutureAddon.CATEGORY, "reminder", "Shows a toast with your text at a set interval.");
     }
 
     @Override

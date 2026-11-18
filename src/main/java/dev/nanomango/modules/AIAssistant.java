@@ -142,9 +142,10 @@ public class AIAssistant extends Module {
 
     private final Setting<Integer> maxTokens = sgPrompt.add(new IntSetting.Builder()
         .name("max-tokens")
-        .description("Maximum response length.")
+        .description("Maximum response length. The provider must support it.")
         .defaultValue(500)
-        .range(1, 4000)
+        .range(1, 32768)
+        .sliderMax(8192)
         .build()
     );
 

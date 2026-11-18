@@ -17,6 +17,7 @@ Put the jar in your mods folder next to Meteor Client for 1.21.11.
 - `ai-assistant`: chat with a configured provider. Use `.ai <message>`; `.contextclear` resets context.
 - `infinite-reach`: teleports to distant blocks, breaks or uses them, then teleports back.
 - `instant-break`: sends the break packets and stops at the server's 0.7 finish point.
+- `keep-mining`: keeps breaking the block you started after you release attack.
 - `phase`: teleports through walls while your hitbox is inside a block.
 - `reminder`: shows a toast with your text at a set interval.
 - `time-shift`: sends move packet bursts to speed up regen and effects on 1.8 servers.

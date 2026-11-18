@@ -12,6 +12,9 @@
     "sources": "https://github.com/nanomangotrkmnia/NanoFutureAddon"
   },
   "environment": "client",
+  "mixins": [
+    "nanofutureaddon.mixins.json"
+  ],
   "entrypoints": {
     "meteor": [
       "dev.nanomango.NanoFutureAddon"

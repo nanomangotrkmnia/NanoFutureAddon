@@ -13,6 +13,8 @@ import meteordevelopment.meteorclient.systems.modules.Modules;
 import meteordevelopment.meteorclient.systems.modules.world.Timer;
 import meteordevelopment.meteorclient.utils.Utils;
 import meteordevelopment.orbit.EventHandler;
+import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.network.ServerInfo;
 import net.minecraft.entity.effect.StatusEffectCategory;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
@@ -121,13 +123,20 @@ public class TimeShift extends Module {
 
     public TimeShift() {
         super(NanoFutureAddon.CATEGORY, "time-shift",
-            "Sends movement packet bursts to speed up 1.8 server regen and effect timers.",
+            "Sends movement packet bursts to speed up regen and effects on 1.8 servers. Client 1.17+ is supported.",
             "zoot", "regen");
     }
 
     @Override
     public void onActivate() {
-        if (Utils.canUpdate()) warning("Only works on 1.8 servers.");
+        if (!Utils.canUpdate()) return;
+
+        ServerInfo server = mc.getCurrentServerEntry();
+        if (server == null || FabricLoader.getInstance().isModLoaded("viafabricplus")) return;
+
+        if (server.protocolVersion > 47) {
+            warning("This server is not 1.8. TimeShift will not speed anything up.");
+        }
     }
 
     @Override

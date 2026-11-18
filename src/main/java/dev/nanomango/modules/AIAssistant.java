@@ -111,8 +111,8 @@ public class AIAssistant extends Module {
 
     private final Setting<String> customUrl = sgProvider.add(new StringSetting.Builder()
         .name("custom-url")
-        .description("OpenAI-compatible chat completions URL.")
-        .defaultValue("https://api.openai.com/v1/chat/completions")
+        .description("Base URL or full chat completions URL. Example: https://api.openai.com/v1")
+        .defaultValue("https://api.openai.com/v1")
         .visible(() -> provider.get() == Provider.Custom)
         .build()
     );
@@ -465,6 +465,15 @@ public class AIAssistant extends Module {
         return text.toString();
     }
 
+    private String customEndpoint() {
+        String url = customUrl.get().trim();
+        while (url.endsWith("/")) url = url.substring(0, url.length() - 1);
+
+        if (url.endsWith("/chat/completions")) return url;
+        if (url.endsWith("/v1")) return url + "/chat/completions";
+        return url + "/v1/chat/completions";
+    }
+
     private String key(Provider provider) {
         return switch (provider) {
             case OpenAI -> openaiKey.get();
@@ -488,7 +497,7 @@ public class AIAssistant extends Module {
             case OpenAI -> "https://api.openai.com/v1/chat/completions";
             case Anthropic -> "https://api.anthropic.com/v1/messages";
             case Gemini -> "https://generativelanguage.googleapis.com";
-            case Custom -> customUrl.get();
+            case Custom -> customEndpoint();
         };
     }
 }

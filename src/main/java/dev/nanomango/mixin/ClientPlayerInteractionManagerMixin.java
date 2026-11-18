@@ -1,6 +1,6 @@
 package dev.nanomango.mixin;
 
-import dev.nanomango.modules.KeepMining;
+import dev.nanomango.modules.KeepBreakProgress;
 import meteordevelopment.meteorclient.systems.modules.Modules;
 import net.minecraft.client.network.ClientPlayerInteractionManager;
 import org.spongepowered.asm.mixin.Mixin;
@@ -15,7 +15,7 @@ public class ClientPlayerInteractionManagerMixin {
         Modules modules = Modules.get();
         if (modules == null) return;
 
-        KeepMining keepMining = modules.get(KeepMining.class);
-        if (keepMining != null && keepMining.shouldKeepBreaking()) info.cancel();
+        KeepBreakProgress keepBreakProgress = modules.get(KeepBreakProgress.class);
+        if (keepBreakProgress != null && keepBreakProgress.shouldKeepBreaking()) info.cancel();
     }
 }

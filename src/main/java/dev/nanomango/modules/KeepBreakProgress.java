@@ -17,7 +17,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 
-public class KeepMining extends Module {
+public class KeepBreakProgress extends Module {
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
 
     private final Setting<Boolean> swing = sgGeneral.add(new BoolSetting.Builder()
@@ -30,8 +30,8 @@ public class KeepMining extends Module {
     private BlockPos target;
     private Direction direction;
 
-    public KeepMining() {
-        super(NanoFutureAddon.CATEGORY, "keep-mining",
+    public KeepBreakProgress() {
+        super(NanoFutureAddon.CATEGORY, "keep-break-progress",
             "Keeps breaking the block you started after you release attack.");
     }
 

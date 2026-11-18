@@ -5,7 +5,7 @@ import dev.nanomango.commands.ContextClearCommand;
 import dev.nanomango.modules.AIAssistant;
 import dev.nanomango.modules.InfiniteReach;
 import dev.nanomango.modules.InstantBreak;
-import dev.nanomango.modules.KeepMining;
+import dev.nanomango.modules.KeepBreakProgress;
 import dev.nanomango.modules.Phase;
 import dev.nanomango.modules.Reminder;
 import dev.nanomango.modules.TimeShift;
@@ -27,7 +27,7 @@ public class NanoFutureAddon extends MeteorAddon {
         Modules.get().add(new AIAssistant());
         Modules.get().add(new InfiniteReach());
         Modules.get().add(new InstantBreak());
-        Modules.get().add(new KeepMining());
+        Modules.get().add(new KeepBreakProgress());
         Modules.get().add(new Phase());
         Modules.get().add(new Reminder());
         Modules.get().add(new TimeShift());

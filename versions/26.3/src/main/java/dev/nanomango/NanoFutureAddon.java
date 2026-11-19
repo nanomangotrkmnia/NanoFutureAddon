@@ -1,6 +1,8 @@
 package dev.nanomango;
 
 import dev.nanomango.commands.AiCommand;
+import dev.nanomango.commands.AiToolCommand;
+import dev.nanomango.commands.AiToolsCommand;
 import dev.nanomango.commands.ContextClearCommand;
 import dev.nanomango.modules.AIAssistant;
 import dev.nanomango.modules.AutoChunkMiner;
@@ -39,6 +41,8 @@ public class NanoFutureAddon extends MeteorAddon {
         Modules.get().add(new TimeShift());
 
         Commands.add(new AiCommand());
+        Commands.add(new AiToolCommand());
+        Commands.add(new AiToolsCommand());
         Commands.add(new ContextClearCommand());
     }
 

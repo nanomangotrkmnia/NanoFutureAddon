@@ -1,0 +1,218 @@
+package dev.nanomango.ai;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+public final class AiTools {
+    private static final int MAX_RESULT = 3000;
+    private static final Map<String, AiTool> TOOLS = new LinkedHashMap<>();
+
+    static {
+        JsonObject empty = schema(new JsonObject());
+
+        add("get_state", "Get player position, dimension, health, food, rotation and held items. Call before acting.",
+            empty, SurroundingsTools::state);
+
+        JsonObject scan = new JsonObject();
+        scan.add("radius", number("Horizontal radius in blocks.", 1, 32));
+        add("scan_area", "Summarize nearby source and flowing fluids, ores, containers and entities.",
+            schema(scan), SurroundingsTools::scanArea);
+
+        JsonObject find = new JsonObject();
+        find.add("block", text("Registry id such as minecraft:diamond_ore. The minecraft: prefix is optional."));
+        find.add("radius", number("Horizontal radius in blocks.", 1, 32));
+        find.add("y_min", number("Vertical offset from the player, negative.", -32, 0));
+        find.add("y_max", number("Vertical offset from the player, positive.", 0, 32));
+        find.add("limit", number("Maximum positions returned.", 1, 64));
+        add("find_blocks", "Find blocks by registry id around the player.",
+            schema(find, "block"), SurroundingsTools::findBlocks);
+
+        JsonObject block = new JsonObject();
+        block.add("x", number("X coordinate.", -30000000, 30000000));
+        block.add("y", number("Y coordinate.", -64, 320));
+        block.add("z", number("Z coordinate.", -30000000, 30000000));
+        block.add("relative", bool("Treat coordinates as offsets from the player. Default true."));
+        add("get_block", "Read one block, including hardness, fluid, breakability and reach.",
+            schema(block, "x", "y", "z"), SurroundingsTools::getBlock);
+
+        JsonObject inventory = new JsonObject();
+        inventory.add("main", bool("Also include the main inventory, not only the hotbar."));
+        add("get_inventory", "Read hotbar, offhand, armor and optional main inventory stacks.",
+            schema(inventory), SurroundingsTools::inventory);
+
+        JsonObject entities = new JsonObject();
+        entities.add("kind", text("One of player, hostile, animal, mob or all. Default mob."));
+        entities.add("radius", number("Horizontal radius in blocks.", 1, 64));
+        entities.add("limit", number("Maximum entities returned.", 1, 32));
+        add("find_entities", "Find nearby entities by kind.",
+            schema(entities), SurroundingsTools::findEntities);
+
+        add("baritone_goto", "Start a Baritone path to x,z with optional y. Needs Baritone available.",
+            schema(gotoSchema(), "x", "z"), BaritoneTools::gotoGoal);
+
+        add("baritone_stop", "Stop the current Baritone job.", empty, BaritoneTools::stop);
+        add("baritone_status", "Report whether Baritone is building or pathing.", empty, BaritoneTools::status);
+    }
+
+    private AiTools() {
+    }
+
+    public static List<AiTool> all() {
+        return List.copyOf(TOOLS.values());
+    }
+
+    public static boolean exists(String name) {
+        return name != null && TOOLS.containsKey(name);
+    }
+
+    public static String run(ToolCall call) throws Exception {
+        AiTool tool = call == null ? null : TOOLS.get(call.name());
+        if (tool == null) return error("Unknown tool: " + (call == null ? "null" : call.name()));
+
+        JsonObject arguments = call.arguments() == null ? new JsonObject() : call.arguments();
+        String result = tool.run(arguments);
+        if (result == null || result.isBlank()) result = "{}";
+        if (result.length() > MAX_RESULT) result = result.substring(0, MAX_RESULT) + "...";
+
+        return result;
+    }
+
+    public static String error(String message) {
+        JsonObject object = new JsonObject();
+        object.addProperty("error", message == null ? "Tool failed." : message);
+        return object.toString();
+    }
+
+    public static int integer(JsonObject arguments, String name, int fallback, int min, int max) {
+        if (arguments == null || !arguments.has(name) || arguments.get(name).isJsonNull()) return fallback;
+
+        try {
+            int value = arguments.get(name).getAsInt();
+            return Math.max(min, Math.min(max, value));
+        } catch (Exception ignored) {
+            return fallback;
+        }
+    }
+
+    public static double decimal(JsonObject arguments, String name, double fallback) {
+        if (arguments == null || !arguments.has(name) || arguments.get(name).isJsonNull()) return fallback;
+
+        try {
+            return arguments.get(name).getAsDouble();
+        } catch (Exception ignored) {
+            return fallback;
+        }
+    }
+
+    public static boolean bool(JsonObject arguments, String name, boolean fallback) {
+        if (arguments == null || !arguments.has(name) || arguments.get(name).isJsonNull()) return fallback;
+
+        try {
+            return arguments.get(name).getAsBoolean();
+        } catch (Exception ignored) {
+            return fallback;
+        }
+    }
+
+    public static boolean present(JsonObject arguments, String name) {
+        return arguments != null && arguments.has(name) && !arguments.get(name).isJsonNull();
+    }
+
+    public static JsonArray defaults(JsonObject arguments, String... names) {
+        JsonArray array = new JsonArray();
+
+        for (String name : names) {
+            if (!present(arguments, name)) array.add(name);
+        }
+
+        return array;
+    }
+
+    public static String intError(JsonObject arguments, String... names) {
+        for (String name : names) {
+            if (!present(arguments, name)) return "missing required argument \"" + name + "\"";
+
+            try {
+                arguments.get(name).getAsInt();
+            } catch (Exception e) {
+                return "argument \"" + name + "\" must be an integer";
+            }
+        }
+
+        return null;
+    }
+
+    public static String string(JsonObject arguments, String name, String fallback) {
+        if (arguments == null || !arguments.has(name) || arguments.get(name).isJsonNull()) return fallback;
+
+        try {
+            String value = arguments.get(name).getAsString();
+            return value == null || value.isBlank() ? fallback : value;
+        } catch (Exception ignored) {
+            return fallback;
+        }
+    }
+
+    private static JsonObject gotoSchema() {
+        JsonObject object = new JsonObject();
+        object.add("x", number("X coordinate.", -30000000, 30000000));
+        object.add("z", number("Z coordinate.", -30000000, 30000000));
+        object.add("y", number("Optional Y coordinate. Omit to path to the surface or cave near x,z.", -64, 320));
+        return object;
+    }
+
+    private static void add(String name, String description, JsonObject parameters, Runner runner) {
+        TOOLS.put(name, new Tool(name, description, parameters, runner));
+    }
+
+    private static JsonObject schema(JsonObject properties, String... required) {
+        JsonObject object = new JsonObject();
+        object.addProperty("type", "object");
+        object.add("properties", properties);
+
+        if (required.length > 0) {
+            JsonArray array = new JsonArray();
+            for (String name : required) array.add(name);
+            object.add("required", array);
+        }
+
+        return object;
+    }
+
+    private static JsonObject text(String description) {
+        return property("string", description);
+    }
+
+    private static JsonObject bool(String description) {
+        return property("boolean", description);
+    }
+
+    private static JsonObject number(String description, int min, int max) {
+        JsonObject object = property("integer", description);
+        object.addProperty("minimum", min);
+        object.addProperty("maximum", max);
+        return object;
+    }
+
+    private static JsonObject property(String type, String description) {
+        JsonObject object = new JsonObject();
+        object.addProperty("type", type);
+        object.addProperty("description", description);
+        return object;
+    }
+
+    private interface Runner {
+        String run(JsonObject arguments) throws Exception;
+    }
+
+    private record Tool(String name, String description, JsonObject parameters, Runner runner) implements AiTool {
+        @Override
+        public String run(JsonObject arguments) throws Exception {
+            return runner.run(arguments);
+        }
+    }
+}

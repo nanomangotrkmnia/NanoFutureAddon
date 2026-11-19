@@ -15,7 +15,7 @@ Put the jar that matches your Minecraft version in your mods folder next to Mete
 
 ## modules
 
-- `ai-assistant`: chat with a configured provider. Use `.ai <message>`; `.contextclear` resets context.
+- `ai-assistant`: chat with a configured provider. Use `.ai <message>`; `.contextclear` resets context; `.aitools on|off` toggles tool use. The model can read nearby blocks and entities and start or stop Baritone paths.
 - `auto-chunk-miner`: mines a chunk from above your head down to a target Y. Fills water and lava next to the layer and pauses when your tool is about to break.
 - `auto-terraform`: clears, fills, or levels blocks around you to a target layer.
 - `ghost-blocks`: places client-side blocks that break in one hit.
@@ -30,6 +30,7 @@ Put the jar that matches your Minecraft version in your mods folder next to Mete
 
 1.21.11 builds use Java 21, 26.3 builds use Java 25. Gradle selects the toolchain automatically.
 AI assistant API keys are masked in the settings window.
+`.aitool <name> [json]` runs one tool directly and `.aitool` lists them.
 
 TimeShift only works on 1.8 servers.
 Phase needs you to be inside a block first.

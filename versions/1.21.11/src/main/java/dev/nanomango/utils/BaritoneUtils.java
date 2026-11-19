@@ -2,6 +2,9 @@ package dev.nanomango.utils;
 
 import baritone.api.BaritoneAPI;
 import baritone.api.IBaritone;
+import baritone.api.pathing.goals.Goal;
+import baritone.api.pathing.goals.GoalBlock;
+import baritone.api.pathing.goals.GoalXZ;
 import baritone.api.utils.BetterBlockPos;
 
 public final class BaritoneUtils {
@@ -19,5 +22,24 @@ public final class BaritoneUtils {
 
     public static void stop() {
         BaritoneAPI.getProvider().getPrimaryBaritone().getCommandManager().execute("stop");
+    }
+
+    public static void gotoBlock(int x, int y, int z) {
+        BaritoneAPI.getProvider().getPrimaryBaritone().getCustomGoalProcess().setGoalAndPath(new GoalBlock(x, y, z));
+    }
+
+    public static void gotoXZ(int x, int z) {
+        BaritoneAPI.getProvider().getPrimaryBaritone().getCustomGoalProcess().setGoalAndPath(new GoalXZ(x, z));
+    }
+
+    public static boolean isPathing() {
+        return BaritoneAPI.getProvider().getPrimaryBaritone().getPathingBehavior().isPathing();
+    }
+
+    public static String status() {
+        IBaritone baritone = BaritoneAPI.getProvider().getPrimaryBaritone();
+        Goal goal = baritone.getCustomGoalProcess().getGoal();
+
+        return goal == null ? "idle" : goal.toString();
     }
 }

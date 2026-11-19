@@ -2,18 +2,21 @@ package dev.nanomango.modules;
 
 import dev.nanomango.NanoFutureAddon;
 import dev.nanomango.utils.ReachHelper;
+import dev.nanomango.utils.SpawnScanner;
+import meteordevelopment.meteorclient.events.render.Render3DEvent;
 import meteordevelopment.meteorclient.events.world.TickEvent;
 import meteordevelopment.meteorclient.settings.BoolSetting;
 import meteordevelopment.meteorclient.settings.IntSetting;
 import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
+import meteordevelopment.meteorclient.renderer.ShapeMode;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.utils.Utils;
 import meteordevelopment.meteorclient.utils.player.FindItemResult;
 import meteordevelopment.meteorclient.utils.player.InvUtils;
+import meteordevelopment.meteorclient.utils.render.color.SettingColor;
 import meteordevelopment.meteorclient.utils.world.BlockUtils;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.block.BlockState;
 import net.minecraft.item.Items;
 import net.minecraft.util.math.BlockPos;
 
@@ -79,7 +82,18 @@ public class AutoTorch extends Module {
         .build()
     );
 
+    private final Setting<Boolean> render = sgGeneral.add(new BoolSetting.Builder()
+        .name("render")
+        .description("Renders spawnable blocks while running.")
+        .defaultValue(false)
+        .build()
+    );
+
+    private final SettingColor sideColor = new SettingColor(255, 80, 80, 25);
+    private final SettingColor lineColor = new SettingColor(255, 80, 80, 180);
+
     private final List<BlockPos> targets = new ArrayList<>();
+    private final List<BlockPos> renderPositions = new ArrayList<>();
 
     private int timer;
     private int scanTimer;
@@ -93,6 +107,7 @@ public class AutoTorch extends Module {
     @Override
     public void onActivate() {
         targets.clear();
+        renderPositions.clear();
         timer = 0;
         scanTimer = 0;
         warned = false;
@@ -101,6 +116,7 @@ public class AutoTorch extends Module {
     @Override
     public void onDeactivate() {
         targets.clear();
+        renderPositions.clear();
         timer = 0;
         scanTimer = 0;
         warned = false;
@@ -142,7 +158,7 @@ public class AutoTorch extends Module {
             iterator.remove();
 
             if (!inRange(pos)) continue;
-            if (!isSpawnable(pos)) continue;
+            if (!SpawnScanner.isSpawnable(pos, minLight.get())) continue;
 
             boolean far = !ReachHelper.inServerReach(pos);
             if (far && !useInfiniteReach.get()) continue;
@@ -160,6 +176,7 @@ public class AutoTorch extends Module {
 
     private void scan() {
         targets.clear();
+        renderPositions.clear();
 
         BlockPos center = mc.player.getBlockPos();
         int radius = this.radius.get();
@@ -173,7 +190,8 @@ public class AutoTorch extends Module {
                 for (int y = -vertical; y <= vertical; y++) {
                     BlockPos pos = center.add(x, y, z);
 
-                    if (!isSpawnable(pos)) continue;
+                    if (!SpawnScanner.isSpawnable(pos, minLight.get())) continue;
+                    if (render.get() && renderPositions.size() < 512) renderPositions.add(pos);
                     if (!ReachHelper.inReach(pos, useInfiniteReach.get())) continue;
 
                     targets.add(pos);
@@ -187,16 +205,15 @@ public class AutoTorch extends Module {
         if (targets.size() > 512) targets.subList(512, targets.size()).clear();
     }
 
-    private boolean isSpawnable(BlockPos pos) {
-        BlockState state = mc.world.getBlockState(pos);
-        if (!state.isAir()) return false;
-        if (!BlockUtils.canPlace(pos)) return false;
+    @EventHandler
+    private void onRender(Render3DEvent event) {
+        if (!render.get() || !Utils.canUpdate()) return;
 
-        BlockPos player = mc.player.getBlockPos();
-        if (pos.equals(player) || pos.equals(player.up())) return false;
-
-        BlockUtils.MobSpawn spawn = BlockUtils.isValidMobSpawn(pos, state, minLight.get());
-        return spawn == BlockUtils.MobSpawn.Always || spawn == BlockUtils.MobSpawn.Potential;
+        for (BlockPos pos : renderPositions) {
+            event.renderer.box(pos.getX(), pos.getY(), pos.getZ(),
+                pos.getX() + 1, pos.getY() + 1, pos.getZ() + 1,
+                sideColor, lineColor, ShapeMode.Both, 0);
+        }
     }
 
     private boolean inRange(BlockPos pos) {

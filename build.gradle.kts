@@ -1,62 +1,60 @@
+import java.util.Properties
+
 plugins {
-    alias(libs.plugins.fabric.loom)
+    id("dev.kikugie.loom-back-compat")
 }
 
+val versionName = stonecutter.current.version
+val versionProps = Properties()
+rootProject.file("versions/$versionName/gradle.properties").inputStream().use { versionProps.load(it) }
+val unobfuscated = stonecutter.eval(versionName, ">=26.1")
+val javaVersion = versionProps.getProperty("java").toInt()
+
 base {
-    archivesName = properties["archives_base_name"] as String
-    version = libs.versions.mod.version.get()
-    group = properties["maven_group"] as String
+    archivesName = rootProject.property("archives_base_name") as String
+    version = "${rootProject.property("mod_version")}+$versionName"
+    group = rootProject.property("maven_group") as String
 }
 
 repositories {
-    maven {
-        name = "meteor-maven"
-        url = uri("https://maven.meteordev.org/releases")
-    }
-    maven {
-        name = "meteor-maven-snapshots"
-        url = uri("https://maven.meteordev.org/snapshots")
-    }
+    maven("https://maven.meteordev.org/releases") { name = "Meteor" }
+    maven("https://maven.meteordev.org/snapshots") { name = "Meteor Snapshots" }
+    maven("https://maven.fabricmc.net/") { name = "Fabric" }
+    mavenCentral()
 }
 
 dependencies {
-    // Fabric
-    minecraft(libs.minecraft)
-    mappings(variantOf(libs.yarn) { classifier("v2") })
-    modImplementation(libs.fabric.loader)
+    minecraft("com.mojang:minecraft:${versionProps.getProperty("minecraft")}")
 
-    // Meteor
-    modImplementation(libs.meteor.client)
+    if (!unobfuscated) {
+        mappings("net.fabricmc:yarn:${versionProps.getProperty("yarn")}:v2")
+    }
 
-    // Baritone, optional at runtime
-    modCompileOnly("meteordevelopment:baritone:1.21.10-SNAPSHOT")
+    modImplementation("net.fabricmc:fabric-loader:${versionProps.getProperty("loader")}")
+    modImplementation("meteordevelopment:meteor-client:${versionProps.getProperty("meteor")}")
+    modCompileOnly("meteordevelopment:baritone:${versionProps.getProperty("baritone")}")
 }
 
-tasks {
-    processResources {
-        val propertyMap = mapOf(
-            "version" to project.version,
-            "mc_version" to libs.versions.minecraft.get()
-        )
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(javaVersion)
+}
 
-        inputs.properties(propertyMap)
+tasks.withType<JavaCompile> {
+    options.encoding = "UTF-8"
+    options.release = javaVersion
+}
 
-        filteringCharset = "UTF-8"
+tasks.processResources {
+    val props = mapOf(
+        "version" to project.version,
+        "mc_version" to versionProps.getProperty("minecraft"),
+        "java_version" to javaVersion
+    )
 
-        filesMatching("fabric.mod.json") {
-            expand(propertyMap)
-        }
-    }
+    inputs.properties(props)
+    filteringCharset = "UTF-8"
 
-    java {
-        sourceCompatibility = JavaVersion.VERSION_21
-        targetCompatibility = JavaVersion.VERSION_21
-    }
-
-    withType<JavaCompile> {
-        options.encoding = "UTF-8"
-        options.release = 21
-        options.compilerArgs.add("-Xlint:deprecation")
-        options.compilerArgs.add("-Xlint:unchecked")
+    filesMatching("fabric.mod.json") {
+        expand(props)
     }
 }

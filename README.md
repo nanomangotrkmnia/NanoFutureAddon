@@ -1,16 +1,17 @@
 # NanoFutureAddon
 
-A Meteor Client addon for Minecraft 1.21.11. Adds a few exploit, movement, and utility modules.
+A Meteor Client addon for Minecraft 1.21.11 and 26.3. Adds a few exploit, movement, and utility modules.
 
 ## build
 
     ./gradlew build
+    ./gradlew collectJars
 
-The jar is in `build/libs/`.
+`collectJars` copies both version jars to `build/libs/`. The jar name includes the Minecraft version.
 
 ## install
 
-Put the jar in your mods folder next to Meteor Client for 1.21.11.
+Put the jar that matches your Minecraft version in your mods folder next to Meteor Client.
 
 ## modules
 
@@ -26,6 +27,8 @@ Put the jar in your mods folder next to Meteor Client for 1.21.11.
 - `time-shift`: sends move packet bursts to speed up regen and effects on 1.8 servers.
 
 ## notes
+
+1.21.11 builds use Java 21, 26.3 builds use Java 25. Gradle selects the toolchain automatically.
 
 TimeShift only works on 1.8 servers.
 Phase needs you to be inside a block first.

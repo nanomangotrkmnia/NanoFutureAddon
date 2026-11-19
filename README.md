@@ -15,9 +15,10 @@ Put the jar that matches your Minecraft version in your mods folder next to Mete
 
 ## modules
 
-- `ai-assistant`: chat with a configured provider. Use `.ai <message>`; `.contextclear` resets context. Tool use is the `use-tools` toggle in the module settings. The model can read nearby blocks and entities and start or stop Baritone paths.
+- `ai-assistant`: chat with a configured provider. Use `.ai <message>`; `.contextclear` resets context. Tool use is the `use-tools` toggle in the module settings. The model can read nearby blocks and entities, save per-server notes, and start or stop Baritone paths.
 - `auto-chunk-miner`: mines a chunk from above your head down to a target Y. Fills water and lava next to the layer and pauses when your tool is about to break.
 - `auto-terraform`: clears, fills, or levels blocks around you to a target layer.
+- `auto-torch`: places torches on dark spawnable blocks in a chosen radius.
 - `ghost-blocks`: places client-side blocks that break in one hit.
 - `infinite-reach`: teleports to distant blocks to break or use them, or to open containers, then teleports back.
 - `instant-break`: sends the break packets and stops at the server's 0.7 finish point.

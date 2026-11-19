@@ -51,6 +51,22 @@ public final class AiTools {
         add("find_entities", "Find nearby entities by kind.",
             schema(entities), SurroundingsTools::findEntities);
 
+        JsonObject remember = new JsonObject();
+        remember.add("key", text("Note name, up to 64 characters."));
+        remember.add("value", text("Note text, up to 500 characters."));
+        add("remember", "Save a note for this server. Persists across sessions.",
+            schema(remember, "key", "value"), MemoryTools::remember);
+
+        JsonObject recall = new JsonObject();
+        recall.add("query", text("Optional text to match against note keys and values."));
+        add("recall", "Search saved notes for this server.",
+            schema(recall), MemoryTools::recall);
+
+        JsonObject forget = new JsonObject();
+        forget.add("key", text("Note name to delete."));
+        add("forget", "Delete a saved note for this server.",
+            schema(forget, "key"), MemoryTools::forget);
+
         add("baritone_goto", "Start a Baritone path to x,z with optional y. Needs Baritone available.",
             schema(gotoSchema(), "x", "z"), BaritoneTools::gotoGoal);
 

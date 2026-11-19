@@ -71,6 +71,12 @@ public class AIAssistant extends Module {
         - get_inventory {"main":bool default false} -> selected slot, non-empty hotbar stacks, offhand, all four armor slots (empty slots are marked), and main inventory when true. Stacks include item, name, count and durability remaining. Example: {"main":true}
         - find_entities {"kind":"player|hostile|animal|mob|all" default mob,"radius":1-64 default 24,"limit":1-32 default 10} -> total count and up to limit entities within player Y-8 to Y+8, with type, name, pos, distance, player, hostile, health. hostile means the hostile mob class; animal is living non-player and non-hostile; mob is living non-player; all includes items. Unknown kinds return an error listing valid values. Example: {"kind":"hostile","radius":16}
 
+        MEMORY TOOLS
+        - remember {"key":"required","value":"required"} -> save a note for this server. Up to 100 notes, key 64 characters, value 500 characters. Use for base coords, stashes and projects.
+        - recall {"query":optional} -> search notes by key or value. Returns up to 20 entries and a total count.
+        - forget {"key":"required"} -> delete one note.
+        Memory persists across sessions and is stored per server or singleplayer world. Do not store passwords, tokens or secrets.
+
         MOVEMENT TOOLS
         - Only call baritone_goto when the user explicitly asks to go somewhere or gives coordinates. If the destination is vague and no coordinates exist, ask. Repeat the destination in your reply.
         - baritone_goto {"x":int,"z":int,"y":optional int} -> status started, x, z, goal ("block" or "xz"). x and z are required. y is -64..320; omit it to let Baritone choose the y. It starts the path and returns immediately, with no arrival or reachability check. Requires Baritone. Example: {"x":120,"z":-340,"y":64}

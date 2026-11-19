@@ -6,6 +6,7 @@ import dev.nanomango.commands.ContextClearCommand;
 import dev.nanomango.modules.AIAssistant;
 import dev.nanomango.modules.AutoChunkMiner;
 import dev.nanomango.modules.AutoTerraform;
+import dev.nanomango.modules.AutoTorch;
 import dev.nanomango.modules.GhostBlocks;
 import dev.nanomango.modules.InfiniteReach;
 import dev.nanomango.modules.InstantBreak;
@@ -31,6 +32,7 @@ public class NanoFutureAddon extends MeteorAddon {
         Modules.get().add(new AIAssistant());
         Modules.get().add(new AutoChunkMiner());
         Modules.get().add(new AutoTerraform());
+        Modules.get().add(new AutoTorch());
         Modules.get().add(new GhostBlocks());
         Modules.get().add(new InfiniteReach());
         Modules.get().add(new InstantBreak());

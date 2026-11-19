@@ -3,6 +3,9 @@ package dev.nanomango.modules;
 import dev.nanomango.NanoFutureAddon;
 import meteordevelopment.meteorclient.events.entity.player.StartBreakingBlockEvent;
 import meteordevelopment.meteorclient.events.world.TickEvent;
+import meteordevelopment.meteorclient.settings.BoolSetting;
+import meteordevelopment.meteorclient.settings.Setting;
+import meteordevelopment.meteorclient.settings.SettingGroup;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.utils.Utils;
 import meteordevelopment.meteorclient.utils.world.BlockUtils;
@@ -14,6 +17,15 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 
 public class InstantBreak extends Module {
+    private final SettingGroup sgGeneral = settings.getDefaultGroup();
+
+    private final Setting<Boolean> fists = sgGeneral.add(new BoolSetting.Builder()
+        .name("fists")
+        .description("Packet-spams the target like Wurst SuperInstaMine. Test mode; the server check still applies.")
+        .defaultValue(false)
+        .build()
+    );
+
     private BlockPos target;
     private Direction direction;
     private int startAge;
@@ -78,11 +90,18 @@ public class InstantBreak extends Module {
             return;
         }
 
+        if (fists.get()) {
+            mc.player.swingHand(Hand.MAIN_HAND);
+
+            mc.getNetworkHandler().sendPacket(new PlayerActionC2SPacket(
+                PlayerActionC2SPacket.Action.STOP_DESTROY_BLOCK, target, direction));
+            mc.getNetworkHandler().sendPacket(new PlayerActionC2SPacket(
+                PlayerActionC2SPacket.Action.START_DESTROY_BLOCK, target, direction));
+            return;
+        }
+
         mc.player.swingHand(Hand.MAIN_HAND);
 
-        // Vanilla finishes the block at 70% of the server's calculated progress.
-        // Sending STOP from that point skips the last 30%. Repeat it because the
-        // server ignores a STOP while another delayed break is pending.
         float progress = delta * (mc.player.age - startAge + 1);
 
         if (progress >= 0.7f) {

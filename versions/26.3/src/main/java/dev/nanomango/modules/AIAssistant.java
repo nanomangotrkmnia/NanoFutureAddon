@@ -351,14 +351,6 @@ public class AIAssistant extends Module {
         pending = false;
     }
 
-    public boolean toolsEnabled() {
-        return tools.get();
-    }
-
-    public void setTools(boolean enabled) {
-        tools.set(enabled);
-    }
-
     private String converse(Provider provider, String url, String key, String model, String system,
                             int tokens, double temp, List<AiMessage> history, int limit,
                             boolean enableTools, boolean enableBaritone, int rounds, boolean log,

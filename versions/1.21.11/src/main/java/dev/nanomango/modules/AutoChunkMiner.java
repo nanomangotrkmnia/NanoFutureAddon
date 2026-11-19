@@ -15,12 +15,17 @@ import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.utils.Utils;
+import meteordevelopment.meteorclient.utils.player.FindItemResult;
+import meteordevelopment.meteorclient.utils.player.InvUtils;
 import meteordevelopment.meteorclient.utils.render.color.SettingColor;
 import meteordevelopment.meteorclient.utils.world.BlockUtils;
 import meteordevelopment.orbit.EventHandler;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
-import net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.FluidBlock;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 
@@ -146,6 +151,22 @@ public class AutoChunkMiner extends Module {
         .build()
     );
 
+    private final Setting<Boolean> pauseLowDurability = sgGeneral.add(new BoolSetting.Builder()
+        .name("pause-low-durability")
+        .description("Pauses mining when your held tool is about to break.")
+        .defaultValue(true)
+        .build()
+    );
+
+    private final Setting<Integer> minDurability = sgGeneral.add(new IntSetting.Builder()
+        .name("min-durability")
+        .description("Remaining durability at which mining pauses.")
+        .defaultValue(10)
+        .range(1, 100)
+        .visible(pauseLowDurability::get)
+        .build()
+    );
+
     private final Setting<Boolean> stopWhenDone = sgGeneral.add(new BoolSetting.Builder()
         .name("stop-when-done")
         .description("Disables the module when the target Y is reached.")
@@ -157,6 +178,30 @@ public class AutoChunkMiner extends Module {
         .name("skip-fluids")
         .description("Skips waterlogged and fluid blocks.")
         .defaultValue(true)
+        .build()
+    );
+
+    private final Setting<Boolean> fillFluids = sgFilter.add(new BoolSetting.Builder()
+        .name("fill-fluids")
+        .description("Fills water and lava next to the layer before mining it.")
+        .defaultValue(true)
+        .build()
+    );
+
+    private final Setting<List<Block>> fillBlocks = sgFilter.add(new BlockListSetting.Builder()
+        .name("fill-blocks")
+        .description("Blocks used to fill fluids. Must be in your hotbar or offhand.")
+        .defaultValue(Blocks.DIRT, Blocks.COBBLESTONE, Blocks.STONE)
+        .visible(fillFluids::get)
+        .build()
+    );
+
+    private final Setting<Integer> fillPerTick = sgFilter.add(new IntSetting.Builder()
+        .name("fill-per-tick")
+        .description("Fluid blocks to fill per tick.")
+        .defaultValue(2)
+        .range(1, 8)
+        .visible(fillFluids::get)
         .build()
     );
 
@@ -184,6 +229,7 @@ public class AutoChunkMiner extends Module {
     private final SettingColor lineColor = new SettingColor(30, 200, 60, 160);
 
     private final List<BlockPos> queue = new ArrayList<>();
+    private final List<BlockPos> fluidQueue = new ArrayList<>();
     private final Set<BlockPos> failed = new HashSet<>();
 
     private boolean initialized;
@@ -207,12 +253,15 @@ public class AutoChunkMiner extends Module {
     private boolean baritoneJob;
     private boolean baritoneStarted;
     private boolean baritoneUsed;
+    private boolean baritoneFluidReady;
     private int baritoneTicks;
     private int baritoneBottom;
 
+    private boolean toolPaused;
+
     public AutoChunkMiner() {
         super(NanoFutureAddon.CATEGORY, "auto-chunk-miner",
-            "Mines a chunk from above your head down to a target Y.");
+            "Mines a chunk from above your head down to a target Y. Fills fluids and pauses before your tool breaks.");
     }
 
     @Override
@@ -227,21 +276,27 @@ public class AutoChunkMiner extends Module {
         timer = 0;
         layer = 0;
         queue.clear();
+        fluidQueue.clear();
         failed.clear();
         baritoneJob = false;
         baritoneStarted = false;
         baritoneUsed = false;
+        baritoneFluidReady = false;
         baritoneTicks = 0;
         baritoneBottom = 0;
+        toolPaused = false;
     }
 
     @Override
     public void onDeactivate() {
         target = null;
         queue.clear();
+        fluidQueue.clear();
         failed.clear();
         baritoneJob = false;
         baritoneStarted = false;
+        baritoneFluidReady = false;
+        toolPaused = false;
 
         if (baritoneUsed) {
             baritoneUsed = false;
@@ -264,10 +319,13 @@ public class AutoChunkMiner extends Module {
         }
 
         if (finished) return;
+        if (handleLowDurability()) return;
 
         if (teleportCooldown > 0) teleportCooldown--;
 
         if (useBaritone) {
+            if (processFluids()) return;
+
             tickBaritone();
             return;
         }
@@ -281,6 +339,8 @@ public class AutoChunkMiner extends Module {
             timer--;
             return;
         }
+
+        if (processFluids()) return;
 
         if (queue.isEmpty()) {
             nextLayer();
@@ -313,6 +373,8 @@ public class AutoChunkMiner extends Module {
         timer = 0;
         failed.clear();
         queue.clear();
+        fluidQueue.clear();
+        baritoneFluidReady = false;
 
         useBaritone = mode.get() == Mode.Baritone && BaritoneSupport.AVAILABLE;
 
@@ -347,6 +409,8 @@ public class AutoChunkMiner extends Module {
                 for (int z = bounds[2]; z <= bounds[3]; z++) add(x, z, support);
             }
         }
+
+        buildFluidQueue(layer, layer);
     }
 
     private void add(int x, int z, BlockPos support) {
@@ -456,7 +520,10 @@ public class AutoChunkMiner extends Module {
             layer--;
             timer = 5;
             buildLayer();
+            return;
         }
+
+        buildFluidQueue(layer, layer);
     }
 
     private void nextLayer() {
@@ -520,7 +587,17 @@ public class AutoChunkMiner extends Module {
         int[] bounds = bounds();
         int bottom = Math.max(targetY.get(), layer - sliceHeight.get() + 1);
 
+        if (fillFluids.get()) {
+            if (!baritoneFluidReady) {
+                buildFluidQueue(bottom, layer);
+                baritoneFluidReady = true;
+            }
+
+            if (!fluidQueue.isEmpty()) return;
+        }
+
         BaritoneBridge.clearArea(bounds[0], bounds[2], bottom, bounds[1], bounds[3], layer);
+        baritoneFluidReady = false;
         baritoneBottom = bottom;
         baritoneJob = true;
         baritoneStarted = false;
@@ -528,6 +605,157 @@ public class AutoChunkMiner extends Module {
         baritoneUsed = true;
     }
 
+    private boolean processFluids() {
+        if (!fillFluids.get() || fluidQueue.isEmpty()) return false;
+
+        int placed = 0;
+        Iterator<BlockPos> iterator = fluidQueue.iterator();
+
+        while (iterator.hasNext() && placed < fillPerTick.get()) {
+            BlockPos pos = iterator.next();
+
+            if (!isFluidSource(pos)) {
+                iterator.remove();
+                continue;
+            }
+
+            boolean far = !ReachHelper.inServerReach(pos);
+
+            if (far && !canTeleport()) {
+                if (teleportCooldown > 0) continue;
+
+                iterator.remove();
+                continue;
+            }
+
+            iterator.remove();
+
+            for (Block block : fillBlocks.get()) {
+                FindItemResult item = InvUtils.findInHotbar(block.asItem());
+                if (!item.found()) continue;
+
+                if (ReachHelper.place(pos, item, far)) {
+                    placed++;
+                    if (far) teleportCooldown = 5;
+                    break;
+                }
+            }
+        }
+
+        return placed > 0;
+    }
+
+    private void buildFluidQueue(int minY, int maxY) {
+        fluidQueue.clear();
+        if (!fillFluids.get()) return;
+
+        int[] bounds = bounds();
+
+        for (int y = minY; y <= maxY; y++) {
+            for (int x = bounds[0] - 1; x <= bounds[1] + 1; x++) {
+                for (int z = bounds[2] - 1; z <= bounds[3] + 1; z++) {
+                    BlockPos pos = new BlockPos(x, y, z);
+
+                    if (!isFluidSource(pos)) continue;
+                    if (!isFluidRelevant(pos, minY, maxY)) continue;
+                    if (BlockUtils.getPlaceSide(pos) == null) continue;
+
+                    fluidQueue.add(pos);
+                }
+            }
+        }
+    }
+
+    private boolean isFluidSource(BlockPos pos) {
+        BlockState state = mc.world.getBlockState(pos);
+        if (!(state.getBlock() instanceof FluidBlock)) return false;
+
+        FluidState fluid = state.getFluidState();
+        return !fluid.isEmpty() && fluid.isStill();
+    }
+
+    private boolean isFluidRelevant(BlockPos pos, int minY, int maxY) {
+        for (Direction direction : Direction.values()) {
+            if (direction == Direction.UP) continue;
+
+            BlockPos neighbor = pos.offset(direction);
+            if (neighbor.getY() < minY || neighbor.getY() > maxY) continue;
+            if (!inBounds(neighbor)) continue;
+            if (isBreakable(neighbor)) return true;
+        }
+
+        return false;
+    }
+
+    private boolean inBounds(BlockPos pos) {
+        int[] bounds = bounds();
+
+        return pos.getX() >= bounds[0] && pos.getX() <= bounds[1]
+            && pos.getZ() >= bounds[2] && pos.getZ() <= bounds[3];
+    }
+
+    private boolean handleLowDurability() {
+        if (!pauseLowDurability.get() || !isToolLow()) {
+            if (toolPaused) {
+                toolPaused = false;
+                info("Tool durability recovered. Resuming.");
+            }
+
+            return false;
+        }
+
+        if (!toolPaused) {
+            toolPaused = true;
+            warning("Mining paused: %s has %d uses left.", heldToolName(), heldToolUses());
+        }
+
+        if (target != null) {
+            BlockPos paused = target;
+            abortTarget();
+
+            if (isBreakable(paused)) queue.add(paused);
+        }
+
+        if (baritoneJob) {
+            baritoneJob = false;
+            baritoneStarted = false;
+            baritoneFluidReady = false;
+            baritoneUsed = false;
+            BaritoneBridge.stop();
+        }
+
+        return true;
+    }
+
+    private boolean isToolLow() {
+        ItemStack stack = mc.player.getMainHandStack();
+
+        return stack.isDamageable() && stack.getMaxDamage() - stack.getDamage() <= minDurability.get();
+    }
+
+    private String heldToolName() {
+        return mc.player.getMainHandStack().getName().getString();
+    }
+
+    private int heldToolUses() {
+        ItemStack stack = mc.player.getMainHandStack();
+        return stack.getMaxDamage() - stack.getDamage();
+    }
+
+    private void abortTarget() {
+        if (target == null) return;
+
+        if (mineMode.get() == MineMode.Legit) {
+            if (mc.interactionManager.isBreakingBlock()) mc.interactionManager.cancelBlockBreaking();
+        } else {
+            ReachHelper.abortBreak(target, targetDirection);
+        }
+
+        target = null;
+        targetDirection = null;
+        breakWait = 0;
+        descending = false;
+    }
 
     private boolean isBreakable(BlockPos pos) {
         BlockState state = mc.world.getBlockState(pos);

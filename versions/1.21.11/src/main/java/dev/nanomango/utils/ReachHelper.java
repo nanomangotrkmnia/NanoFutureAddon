@@ -76,6 +76,10 @@ public final class ReachHelper {
         sendAction(PlayerActionC2SPacket.Action.STOP_DESTROY_BLOCK, pos, direction);
     }
 
+    public static void abortBreak(BlockPos pos, Direction direction) {
+        sendAction(PlayerActionC2SPacket.Action.ABORT_DESTROY_BLOCK, pos, direction);
+    }
+
     public static boolean place(BlockPos pos, FindItemResult item, boolean teleport) {
         if (inServerReach(pos)) return BlockUtils.place(pos, item, false, 50);
         if (!teleport) return false;
@@ -93,13 +97,7 @@ public final class ReachHelper {
 
         if (destination == null) return false;
 
-        int packets = 4;
-        InfiniteReach infinite = Modules.get().get(InfiniteReach.class);
-        if (infinite != null && infinite.isActive()) packets = infinite.packets();
-
-        for (int i = 0; i < packets; i++) {
-            mc.getNetworkHandler().sendPacket(new PlayerMoveC2SPacket.OnGroundOnly(false, false));
-        }
+        for (int i = 0; i < teleportPackets(); i++) sendStatus(false, false);
 
         sendMove(destination);
         action.run();
@@ -110,6 +108,46 @@ public final class ReachHelper {
         mc.player.setPosition(home);
 
         return true;
+    }
+
+    public static Vec3d teleportOpen(BlockPos target, Vec3d hitPos, Runnable action) {
+        Vec3d start = mc.player.getEntityPos();
+        Vec3d center = target.toCenterPos();
+        Vec3d destination = findPosition(target, center, hitPos, start);
+
+        if (destination == null) return null;
+
+        for (int i = 0; i < teleportPackets(); i++) sendStatus(false, false);
+
+        sendMove(destination);
+        action.run();
+
+        return destination;
+    }
+
+    public static void hold(Vec3d pos) {
+        PlayerMoveC2SPacket.PositionAndOnGround packet =
+            new PlayerMoveC2SPacket.PositionAndOnGround(pos.x, pos.y, pos.z, true, false);
+
+        ((IPlayerMoveC2SPacket) packet).meteor$setTag(1337);
+        mc.getNetworkHandler().sendPacket(packet);
+    }
+
+    public static void restore(Vec3d from, Vec3d to) {
+        int packets = statusCount(from.distanceTo(to));
+
+        for (int i = 0; i < packets; i++) sendStatus(false, false);
+        sendMove(to);
+    }
+
+    private static int statusCount(double distance) {
+        int packets = (int) Math.ceil(distance * distance / 90.0);
+        return Math.max(4, packets);
+    }
+
+    private static int teleportPackets() {
+        InfiniteReach infinite = Modules.get().get(InfiniteReach.class);
+        return infinite != null && infinite.isActive() ? infinite.packets() : 4;
     }
 
     private static Vec3d findPosition(BlockPos target, Vec3d center, Vec3d hitPos, Vec3d start) {
@@ -150,6 +188,13 @@ public final class ReachHelper {
     private static void sendMove(Vec3d pos) {
         PlayerMoveC2SPacket.PositionAndOnGround packet =
             new PlayerMoveC2SPacket.PositionAndOnGround(pos.x, pos.y, pos.z, false, false);
+
+        ((IPlayerMoveC2SPacket) packet).meteor$setTag(1337);
+        mc.getNetworkHandler().sendPacket(packet);
+    }
+
+    private static void sendStatus(boolean onGround, boolean collision) {
+        PlayerMoveC2SPacket.OnGroundOnly packet = new PlayerMoveC2SPacket.OnGroundOnly(onGround, collision);
 
         ((IPlayerMoveC2SPacket) packet).meteor$setTag(1337);
         mc.getNetworkHandler().sendPacket(packet);

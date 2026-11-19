@@ -2,7 +2,11 @@ package dev.nanomango.modules;
 
 import dev.nanomango.NanoFutureAddon;
 import dev.nanomango.utils.ReachHelper;
+import meteordevelopment.meteorclient.events.game.GameJoinedEvent;
+import meteordevelopment.meteorclient.events.game.GameLeftEvent;
+import meteordevelopment.meteorclient.events.packets.PacketEvent;
 import meteordevelopment.meteorclient.events.world.TickEvent;
+import meteordevelopment.meteorclient.mixininterface.IServerboundMovePlayerPacket;
 import meteordevelopment.meteorclient.settings.BoolSetting;
 import meteordevelopment.meteorclient.settings.DoubleSetting;
 import meteordevelopment.meteorclient.settings.IntSetting;
@@ -12,7 +16,9 @@ import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.utils.Utils;
 import meteordevelopment.orbit.EventHandler;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
+import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.component.SwingAnimation;
 import net.minecraft.world.level.ClipContext;
@@ -62,28 +68,57 @@ public class InfiniteReach extends Module {
         .build()
     );
 
+    private final Setting<Boolean> containers = sgGeneral.add(new BoolSetting.Builder()
+        .name("containers")
+        .description("Opens chests and other containers from up to max-distance.")
+        .defaultValue(true)
+        .build()
+    );
+
     private int cooldownTicks;
+
+    private BlockPos remoteContainer;
+    private Vec3 remoteFrom;
+    private int remoteWait;
+    private boolean remoteOpen;
 
     public InfiniteReach() {
         super(NanoFutureAddon.CATEGORY, "infinite-reach",
-            "Teleports to distant blocks to break or use them, then teleports back.");
+            "Teleports to distant blocks to break, use, or open containers, then teleports back.");
     }
 
     @Override
     public void onActivate() {
         cooldownTicks = 0;
+        clearRemote();
+    }
+
+    @Override
+    public void onDeactivate() {
+        finishRemote(true);
+        clearRemote();
+        cooldownTicks = 0;
     }
 
     @EventHandler
     private void onTick(TickEvent.Pre event) {
-        if (!Utils.canUpdate()) return;
+        if (!Utils.canUpdate()) {
+            clearRemote();
+            return;
+        }
+
+        if (remoteContainer != null) {
+            tickRemoteContainer();
+            return;
+        }
+
         if (cooldownTicks > 0) {
             cooldownTicks--;
             return;
         }
 
         boolean attack = mc.options.keyAttack.isDown();
-        boolean use = useBlocks.get() && mc.options.keyUse.isDown();
+        boolean use = mc.options.keyUse.isDown();
         if (!attack && !use) return;
 
         Vec3 eye = mc.player.getEyePosition();
@@ -102,6 +137,24 @@ public class InfiniteReach extends Module {
 
         if (mc.player.getEyePosition().distanceToSqr(center) <= range * range) return;
 
+        if (use && containers.get() && hasContainer(pos)) {
+            Vec3 from = ReachHelper.teleportOpen(pos, hit.getLocation(), () ->
+                mc.getConnection().send(new ServerboundUseItemOnPacket(InteractionHand.MAIN_HAND, hit, 0)));
+
+            if (from == null) return;
+
+            remoteContainer = pos.immutable();
+            remoteFrom = from;
+            remoteWait = 20;
+            remoteOpen = false;
+
+            if (swing.get()) mc.player.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT, true);
+            cooldownTicks = cooldown.get();
+            return;
+        }
+
+        if (!attack && !useBlocks.get()) return;
+
         boolean teleported = ReachHelper.teleportAction(pos, hit.getLocation(), () -> {
             if (attack) {
                 mc.getConnection().send(new ServerboundPlayerActionPacket(
@@ -109,8 +162,7 @@ public class InfiniteReach extends Module {
                 mc.getConnection().send(new ServerboundPlayerActionPacket(
                     ServerboundPlayerActionPacket.Action.STOP_DESTROY_BLOCK, pos, hit.getDirection()));
             } else {
-                mc.getConnection().send(new net.minecraft.network.protocol.game.ServerboundUseItemOnPacket(
-                    InteractionHand.MAIN_HAND, hit, 0));
+                mc.getConnection().send(new ServerboundUseItemOnPacket(InteractionHand.MAIN_HAND, hit, 0));
             }
         });
 
@@ -118,6 +170,72 @@ public class InfiniteReach extends Module {
 
         if (swing.get()) mc.player.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT, true);
         cooldownTicks = cooldown.get();
+    }
+
+    @EventHandler
+    private void onSendPacket(PacketEvent.Send event) {
+        if (remoteContainer == null) return;
+        if (!(event.packet instanceof ServerboundMovePlayerPacket packet)) return;
+        if (((IServerboundMovePlayerPacket) packet).meteor$getTag() == 1337) return;
+
+        event.cancel();
+    }
+
+    @EventHandler
+    private void onGameLeft(GameLeftEvent event) {
+        clearRemote();
+        cooldownTicks = 0;
+    }
+
+    @EventHandler
+    private void onGameJoined(GameJoinedEvent event) {
+        clearRemote();
+        cooldownTicks = 0;
+    }
+
+    private void tickRemoteContainer() {
+        ReachHelper.hold(remoteFrom);
+
+        if (!remoteOpen) {
+            if (isContainerOpen()) {
+                remoteOpen = true;
+                return;
+            }
+
+            if (--remoteWait <= 0) finishRemote(false);
+            return;
+        }
+
+        if (!isContainerOpen()) finishRemote(false);
+    }
+
+    private boolean isContainerOpen() {
+        return mc.player.containerMenu != mc.player.inventoryMenu;
+    }
+
+    private boolean hasContainer(BlockPos pos) {
+        return mc.level.getBlockState(pos).getMenuProvider(mc.level, pos) != null;
+    }
+
+    private void finishRemote(boolean closeScreen) {
+        if (remoteContainer == null) return;
+
+        if (closeScreen && Utils.canUpdate() && isContainerOpen()) {
+            mc.player.closeContainer();
+        }
+
+        if (remoteFrom != null && Utils.canUpdate() && mc.getConnection() != null) {
+            ReachHelper.restore(remoteFrom, mc.player.position());
+        }
+
+        clearRemote();
+    }
+
+    private void clearRemote() {
+        remoteContainer = null;
+        remoteFrom = null;
+        remoteWait = 0;
+        remoteOpen = false;
     }
 
     public double maxDistance() {

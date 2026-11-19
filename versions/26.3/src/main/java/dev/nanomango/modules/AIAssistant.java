@@ -5,6 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import dev.nanomango.NanoFutureAddon;
+import dev.nanomango.utils.SecretTextBoxRenderer;
 import meteordevelopment.meteorclient.events.game.GameJoinedEvent;
 import meteordevelopment.meteorclient.events.game.GameLeftEvent;
 import meteordevelopment.meteorclient.settings.DoubleSetting;
@@ -66,6 +67,7 @@ public class AIAssistant extends Module {
         .description("OpenAI API key.")
         .defaultValue("")
         .visible(() -> provider.get() == Provider.OpenAI)
+        .renderer(SecretTextBoxRenderer.class)
         .build()
     );
 
@@ -82,6 +84,7 @@ public class AIAssistant extends Module {
         .description("Anthropic API key.")
         .defaultValue("")
         .visible(() -> provider.get() == Provider.Anthropic)
+        .renderer(SecretTextBoxRenderer.class)
         .build()
     );
 
@@ -98,6 +101,7 @@ public class AIAssistant extends Module {
         .description("Google AI Studio API key.")
         .defaultValue("")
         .visible(() -> provider.get() == Provider.Gemini)
+        .renderer(SecretTextBoxRenderer.class)
         .build()
     );
 
@@ -122,6 +126,7 @@ public class AIAssistant extends Module {
         .description("Bearer token for the custom endpoint.")
         .defaultValue("")
         .visible(() -> provider.get() == Provider.Custom)
+        .renderer(SecretTextBoxRenderer.class)
         .build()
     );
 

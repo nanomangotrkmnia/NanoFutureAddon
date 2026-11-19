@@ -16,10 +16,10 @@ Put the jar that matches your Minecraft version in your mods folder next to Mete
 ## modules
 
 - `ai-assistant`: chat with a configured provider. Use `.ai <message>`; `.contextclear` resets context.
-- `auto-chunk-miner`: mines a chunk from above your head down to a target Y.
+- `auto-chunk-miner`: mines a chunk from above your head down to a target Y. Fills water and lava next to the layer and pauses when your tool is about to break.
 - `auto-terraform`: clears, fills, or levels blocks around you to a target layer.
 - `ghost-blocks`: places client-side blocks that break in one hit.
-- `infinite-reach`: teleports to distant blocks, breaks or uses them, then teleports back.
+- `infinite-reach`: teleports to distant blocks to break or use them, or to open containers, then teleports back.
 - `instant-break`: sends the break packets and stops at the server's 0.7 finish point.
 - `keep-break-progress`: keeps break progress when you stop mining.
 - `phase`: teleports through walls while your hitbox is inside a block.
@@ -29,6 +29,7 @@ Put the jar that matches your Minecraft version in your mods folder next to Mete
 ## notes
 
 1.21.11 builds use Java 21, 26.3 builds use Java 25. Gradle selects the toolchain automatically.
+AI assistant API keys are masked in the settings window.
 
 TimeShift only works on 1.8 servers.
 Phase needs you to be inside a block first.

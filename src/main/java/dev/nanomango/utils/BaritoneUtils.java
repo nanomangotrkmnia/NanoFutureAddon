@@ -8,9 +8,9 @@ public final class BaritoneUtils {
     private BaritoneUtils() {
     }
 
-    public static void clearArea(int minX, int minZ, int y, int maxX, int maxZ) {
+    public static void clearArea(int minX, int minZ, int minY, int maxX, int maxZ, int maxY) {
         IBaritone baritone = BaritoneAPI.getProvider().getPrimaryBaritone();
-        baritone.getBuilderProcess().clearArea(new BetterBlockPos(minX, y, minZ), new BetterBlockPos(maxX, y, maxZ));
+        baritone.getBuilderProcess().clearArea(new BetterBlockPos(minX, minY, minZ), new BetterBlockPos(maxX, maxY, maxZ));
     }
 
     public static boolean isBusy() {

@@ -32,6 +32,7 @@ Phase needs you to be inside a block first.
 InfiniteReach is capped at 22 blocks on vanilla.
 AutoTerraform only works within interaction range; walk to cover an area.
 AutoChunkMiner uses Baritone when installed, otherwise Reach mode only mines blocks in range.
+AutoChunkMiner and AutoTerraform use InfiniteReach for blocks beyond normal reach; vanilla still caps normal reach at about 5.5 blocks.
 GhostBlocks swallows right click while active; use SneakRightClick mode to keep normal interactions.
 
 ## commands

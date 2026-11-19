@@ -10,7 +10,7 @@ public final class BaritoneBridge {
     static {
         try {
             Class<?> type = Class.forName("dev.nanomango.utils.BaritoneUtils");
-            clearArea = type.getMethod("clearArea", int.class, int.class, int.class, int.class, int.class);
+            clearArea = type.getMethod("clearArea", int.class, int.class, int.class, int.class, int.class, int.class);
             isBusy = type.getMethod("isBusy");
             stop = type.getMethod("stop");
         } catch (Throwable ignored) {
@@ -23,11 +23,11 @@ public final class BaritoneBridge {
     private BaritoneBridge() {
     }
 
-    public static void clearArea(int minX, int minZ, int y, int maxX, int maxZ) {
+    public static void clearArea(int minX, int minZ, int minY, int maxX, int maxZ, int maxY) {
         if (clearArea == null) return;
 
         try {
-            clearArea.invoke(null, minX, minZ, y, maxX, maxZ);
+            clearArea.invoke(null, minX, minZ, minY, maxX, maxZ, maxY);
         } catch (ReflectiveOperationException ignored) {
         }
     }

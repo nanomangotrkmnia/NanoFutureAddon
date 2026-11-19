@@ -2,6 +2,7 @@ package dev.nanomango.modules;
 
 import dev.nanomango.NanoFutureAddon;
 import dev.nanomango.utils.BaritoneSupport;
+import dev.nanomango.utils.ReachHelper;
 import dev.nanomango.utils.BaritoneBridge;
 import meteordevelopment.meteorclient.events.render.Render3DEvent;
 import meteordevelopment.meteorclient.events.world.TickEvent;
@@ -107,6 +108,22 @@ public class AutoChunkMiner extends Module {
         .build()
     );
 
+    private final Setting<Boolean> useInfiniteReach = sgGeneral.add(new BoolSetting.Builder()
+        .name("use-infinite-reach")
+        .description("Uses InfiniteReach to break blocks up to its max distance.")
+        .defaultValue(true)
+        .build()
+    );
+
+    private final Setting<Integer> sliceHeight = sgGeneral.add(new IntSetting.Builder()
+        .name("slice-height")
+        .description("Layers cleared per Baritone job.")
+        .defaultValue(4)
+        .range(1, 8)
+        .visible(() -> mode.get() == Mode.Baritone)
+        .build()
+    );
+
     private final Setting<Integer> delay = sgGeneral.add(new IntSetting.Builder()
         .name("delay")
         .description("Ticks to wait between blocks.")
@@ -183,13 +200,15 @@ public class AutoChunkMiner extends Module {
     private Direction targetDirection;
     private int targetTicks;
     private int targetLimit;
+    private int breakWait;
     private int startAge;
-    private boolean stopSent;
+    private int teleportCooldown;
 
     private boolean baritoneJob;
     private boolean baritoneStarted;
     private boolean baritoneUsed;
     private int baritoneTicks;
+    private int baritoneBottom;
 
     public AutoChunkMiner() {
         super(NanoFutureAddon.CATEGORY, "auto-chunk-miner",
@@ -203,7 +222,8 @@ public class AutoChunkMiner extends Module {
         useBaritone = false;
         descending = false;
         target = null;
-        stopSent = false;
+        breakWait = 0;
+        teleportCooldown = 0;
         timer = 0;
         layer = 0;
         queue.clear();
@@ -212,6 +232,7 @@ public class AutoChunkMiner extends Module {
         baritoneStarted = false;
         baritoneUsed = false;
         baritoneTicks = 0;
+        baritoneBottom = 0;
     }
 
     @Override
@@ -243,6 +264,8 @@ public class AutoChunkMiner extends Module {
         }
 
         if (finished) return;
+
+        if (teleportCooldown > 0) teleportCooldown--;
 
         if (useBaritone) {
             tickBaritone();
@@ -352,7 +375,7 @@ public class AutoChunkMiner extends Module {
                 continue;
             }
 
-            if (!inReach(pos)) continue;
+            if (!ReachHelper.inReach(pos, canTeleport())) continue;
 
             if (order.get() == Order.Serpentine) return pos;
 
@@ -370,15 +393,28 @@ public class AutoChunkMiner extends Module {
         target = pos;
         targetTicks = 0;
         targetLimit = breakLimit(pos) + 20;
-        targetDirection = BlockUtils.getDirection(pos);
         startAge = mc.player.age;
-        stopSent = false;
+
+        boolean far = !ReachHelper.inServerReach(pos);
 
         if (mineMode.get() == MineMode.Legit) {
             BlockUtils.breakBlock(pos, swing.get());
-        } else {
-            sendAction(PlayerActionC2SPacket.Action.START_DESTROY_BLOCK);
+            return;
         }
+
+        Direction direction = ReachHelper.startBreak(pos, far && canTeleport());
+
+        if (direction == null) {
+            failed.add(pos);
+            target = null;
+            timer = delay.get();
+            return;
+        }
+
+        targetDirection = direction;
+        breakWait = ReachHelper.breakTicks(pos);
+
+        if (far) teleportCooldown = 5;
     }
 
     private void tickTarget() {
@@ -391,32 +427,28 @@ public class AutoChunkMiner extends Module {
             return;
         }
 
-        if (!inReach(target) || targetTicks > targetLimit) {
-            failed.add(target);
-            target = null;
-            descending = false;
-            timer = delay.get();
-            return;
-        }
-
         if (mineMode.get() == MineMode.Legit) {
+            if (!ReachHelper.inServerReach(target) || targetTicks > targetLimit) {
+                failed.add(target);
+                target = null;
+                descending = false;
+                timer = delay.get();
+                return;
+            }
+
             BlockUtils.breakBlock(target, swing.get());
             return;
         }
 
-        if (stopSent) return;
-
-        float delta = state.calcBlockBreakingDelta(mc.player, mc.world, target);
-
-        if (delta > 0 && delta * (mc.player.age - startAge + 1) >= 0.75f) {
-            sendAction(PlayerActionC2SPacket.Action.STOP_DESTROY_BLOCK);
-            stopSent = true;
+        if (--breakWait <= 0) {
+            ReachHelper.stopBreak(target, targetDirection);
+            completeTarget();
+            timer = Math.max(1, delay.get());
         }
     }
 
     private void completeTarget() {
         target = null;
-        stopSent = false;
         timer = delay.get();
 
         if (descending) {
@@ -459,7 +491,7 @@ public class AutoChunkMiner extends Module {
 
                 if (++baritoneTicks > 40) {
                     baritoneJob = false;
-                    layer--;
+                    layer = baritoneBottom - 1;
                     timer = 2;
                 }
 
@@ -470,7 +502,7 @@ public class AutoChunkMiner extends Module {
 
             baritoneJob = false;
             baritoneStarted = false;
-            layer--;
+            layer = baritoneBottom - 1;
             timer = 2;
             return;
         }
@@ -486,17 +518,16 @@ public class AutoChunkMiner extends Module {
         }
 
         int[] bounds = bounds();
+        int bottom = Math.max(targetY.get(), layer - sliceHeight.get() + 1);
 
-        BaritoneBridge.clearArea(bounds[0], bounds[2], layer, bounds[1], bounds[3]);
+        BaritoneBridge.clearArea(bounds[0], bounds[2], bottom, bounds[1], bounds[3], layer);
+        baritoneBottom = bottom;
         baritoneJob = true;
         baritoneStarted = false;
         baritoneTicks = 0;
         baritoneUsed = true;
     }
 
-    private void sendAction(PlayerActionC2SPacket.Action action) {
-        mc.getNetworkHandler().sendPacket(new PlayerActionC2SPacket(action, target, targetDirection));
-    }
 
     private boolean isBreakable(BlockPos pos) {
         BlockState state = mc.world.getBlockState(pos);
@@ -509,9 +540,8 @@ public class AutoChunkMiner extends Module {
         return true;
     }
 
-    private boolean inReach(BlockPos pos) {
-        double range = mc.player.getBlockInteractionRange();
-        return mc.player.getEyePos().squaredDistanceTo(pos.toCenterPos()) <= range * range;
+    private boolean canTeleport() {
+        return useInfiniteReach.get() && mineMode.get() == MineMode.Instant && teleportCooldown == 0;
     }
 
     private int breakLimit(BlockPos pos) {

@@ -1,6 +1,7 @@
 package dev.nanomango.modules;
 
 import dev.nanomango.NanoFutureAddon;
+import dev.nanomango.utils.ReachHelper;
 import meteordevelopment.meteorclient.events.world.TickEvent;
 import meteordevelopment.meteorclient.settings.BlockListSetting;
 import meteordevelopment.meteorclient.settings.BoolSetting;
@@ -18,6 +19,7 @@ import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -30,6 +32,11 @@ public class AutoTerraform extends Module {
         Flatten,
         Clear,
         Fill
+    }
+
+    public enum MineMode {
+        Legit,
+        Instant
     }
 
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
@@ -66,11 +73,34 @@ public class AutoTerraform extends Module {
         .build()
     );
 
+    private final Setting<MineMode> mineMode = sgGeneral.add(new EnumSetting.Builder<MineMode>()
+        .name("mine-mode")
+        .description("Instant stops at 0.75 progress. Legit drives vanilla mining.")
+        .defaultValue(MineMode.Instant)
+        .build()
+    );
+
     private final Setting<Integer> delay = sgGeneral.add(new IntSetting.Builder()
         .name("delay")
         .description("Ticks to wait after a block is finished.")
-        .defaultValue(2)
+        .defaultValue(0)
         .range(0, 20)
+        .build()
+    );
+
+    private final Setting<Integer> placePerTick = sgGeneral.add(new IntSetting.Builder()
+        .name("place-per-tick")
+        .description("Blocks to place per tick.")
+        .defaultValue(4)
+        .range(1, 16)
+        .visible(() -> mode.get() != Mode.Clear)
+        .build()
+    );
+
+    private final Setting<Boolean> useInfiniteReach = sgGeneral.add(new BoolSetting.Builder()
+        .name("use-infinite-reach")
+        .description("Uses InfiniteReach to break and place blocks up to its max distance.")
+        .defaultValue(true)
         .build()
     );
 
@@ -89,13 +119,6 @@ public class AutoTerraform extends Module {
         .build()
     );
 
-    private final Setting<Boolean> rotate = sgGeneral.add(new BoolSetting.Builder()
-        .name("rotate")
-        .description("Rotates when placing blocks.")
-        .defaultValue(true)
-        .build()
-    );
-
     private final Setting<Boolean> swing = sgGeneral.add(new BoolSetting.Builder()
         .name("swing")
         .description("Swings your hand while breaking.")
@@ -106,9 +129,12 @@ public class AutoTerraform extends Module {
     private final Set<BlockPos> ignored = new HashSet<>();
 
     private BlockPos target;
+    private Direction targetDirection;
     private int timer;
     private int targetTicks;
     private int targetLimit = 400;
+    private int breakWait;
+    private int teleportCooldown;
 
     public AutoTerraform() {
         super(NanoFutureAddon.CATEGORY, "auto-terraform",
@@ -120,6 +146,8 @@ public class AutoTerraform extends Module {
         target = null;
         timer = 0;
         targetTicks = 0;
+        breakWait = 0;
+        teleportCooldown = 0;
         ignored.clear();
     }
 
@@ -135,19 +163,13 @@ public class AutoTerraform extends Module {
             return;
         }
 
+        if (teleportCooldown > 0) teleportCooldown--;
+
         int layer = groundLevel() + offset.get();
 
         if (target != null) {
-            targetTicks++;
-
-            if (targetTicks > targetLimit || !canBreak(target)) {
-                if (targetTicks > targetLimit) ignored.add(target);
-                clearTarget();
-                timer = delay.get();
-            } else {
-                BlockUtils.breakBlock(target, swing.get());
-                return;
-            }
+            tickTarget();
+            return;
         }
 
         if (timer > 0) {
@@ -159,15 +181,67 @@ public class AutoTerraform extends Module {
             BlockPos pos = findBreak(layer);
 
             if (pos != null) {
-                target = pos;
-                targetTicks = 0;
-                targetLimit = breakLimit(pos);
-                BlockUtils.breakBlock(target, swing.get());
+                startTarget(pos);
                 return;
             }
         }
 
-        if (mode.get() != Mode.Clear && place(layer)) timer = delay.get();
+        if (mode.get() != Mode.Clear) placeBatch(layer);
+    }
+
+    private void tickTarget() {
+        BlockState state = mc.world.getBlockState(target);
+
+        if (state.isAir()) {
+            clearTarget();
+            timer = delay.get();
+            return;
+        }
+
+        if (mineMode.get() == MineMode.Legit) {
+            targetTicks++;
+
+            if (targetTicks > targetLimit || !canBreak(target)) {
+                if (targetTicks > targetLimit) ignored.add(target);
+                clearTarget();
+                timer = delay.get();
+                return;
+            }
+
+            BlockUtils.breakBlock(target, swing.get());
+            return;
+        }
+
+        if (--breakWait <= 0) {
+            ReachHelper.stopBreak(target, targetDirection);
+            clearTarget();
+            timer = Math.max(1, delay.get());
+        }
+    }
+
+    private void startTarget(BlockPos pos) {
+        if (mineMode.get() == MineMode.Legit) {
+            target = pos;
+            targetTicks = 0;
+            targetLimit = breakLimit(pos);
+            BlockUtils.breakBlock(pos, swing.get());
+            return;
+        }
+
+        boolean far = !ReachHelper.inServerReach(pos);
+        Direction direction = ReachHelper.startBreak(pos, far && canTeleport());
+
+        if (direction == null) {
+            ignored.add(pos);
+            return;
+        }
+
+        target = pos;
+        targetDirection = direction;
+        breakWait = ReachHelper.breakTicks(pos);
+
+        if (far) teleportCooldown = 5;
+        if (swing.get()) mc.player.swingHand(net.minecraft.util.Hand.MAIN_HAND);
     }
 
     private BlockPos findBreak(int layer) {
@@ -198,7 +272,7 @@ public class AutoTerraform extends Module {
         return best;
     }
 
-    private boolean place(int layer) {
+    private void placeBatch(int layer) {
         int radius = this.radius.get();
         BlockPos feet = mc.player.getBlockPos();
         List<BlockPos> positions = new ArrayList<>();
@@ -208,7 +282,9 @@ public class AutoTerraform extends Module {
                 if (x * x + z * z > radius * radius) continue;
 
                 BlockPos pos = new BlockPos(feet.getX() + x, layer, feet.getZ() + z);
-                if (!mc.world.getBlockState(pos).isReplaceable() || !isInReach(pos)) continue;
+
+                if (!mc.world.getBlockState(pos).isReplaceable()) continue;
+                if (!ReachHelper.inReach(pos, canTeleport())) continue;
 
                 positions.add(pos);
             }
@@ -217,18 +293,35 @@ public class AutoTerraform extends Module {
         positions.sort(Comparator.comparingDouble(pos ->
             mc.player.getEyePos().squaredDistanceTo(pos.toCenterPos())));
 
-        for (int i = 0; i < Math.min(positions.size(), 8); i++) {
-            BlockPos pos = positions.get(i);
+        int placed = 0;
+        boolean teleported = false;
+
+        for (BlockPos pos : positions) {
+            if (placed >= placePerTick.get()) break;
+
+            boolean far = !ReachHelper.inServerReach(pos);
+            if (far && (teleported || !canTeleport())) continue;
 
             for (Block block : placeBlocks.get()) {
                 FindItemResult item = InvUtils.findInHotbar(block.asItem());
                 if (!item.found()) continue;
 
-                if (BlockUtils.place(pos, item, rotate.get(), 50)) return true;
+                if (ReachHelper.place(pos, item, far && canTeleport())) {
+                    placed++;
+
+                    if (far) {
+                        teleported = true;
+                        teleportCooldown = 5;
+                    }
+
+                    break;
+                }
             }
         }
+    }
 
-        return false;
+    private boolean canTeleport() {
+        return useInfiniteReach.get() && teleportCooldown == 0;
     }
 
     private boolean canBreak(BlockPos pos) {
@@ -237,12 +330,7 @@ public class AutoTerraform extends Module {
         if (state.isAir() || !BlockUtils.canBreak(pos, state)) return false;
         if (skipBlockEntities.get() && state.hasBlockEntity()) return false;
 
-        return isInReach(pos);
-    }
-
-    private boolean isInReach(BlockPos pos) {
-        double range = mc.player.getBlockInteractionRange();
-        return mc.player.getEyePos().squaredDistanceTo(pos.toCenterPos()) <= range * range;
+        return ReachHelper.inReach(pos, mineMode.get() == MineMode.Instant && canTeleport());
     }
 
     private int breakLimit(BlockPos pos) {
@@ -266,7 +354,8 @@ public class AutoTerraform extends Module {
     private void clearTarget() {
         targetTicks = 0;
 
-        if (target != null && mc.interactionManager != null && mc.interactionManager.isBreakingBlock()) {
+        if (mineMode.get() == MineMode.Legit && target != null
+            && mc.interactionManager != null && mc.interactionManager.isBreakingBlock()) {
             mc.interactionManager.cancelBlockBreaking();
         }
 

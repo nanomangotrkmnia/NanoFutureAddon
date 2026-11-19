@@ -1,8 +1,8 @@
 package dev.nanomango.modules;
 
 import dev.nanomango.NanoFutureAddon;
+import dev.nanomango.utils.ReachHelper;
 import meteordevelopment.meteorclient.events.world.TickEvent;
-import meteordevelopment.meteorclient.mixininterface.IPlayerMoveC2SPacket;
 import meteordevelopment.meteorclient.settings.BoolSetting;
 import meteordevelopment.meteorclient.settings.DoubleSetting;
 import meteordevelopment.meteorclient.settings.IntSetting;
@@ -13,12 +13,10 @@ import meteordevelopment.meteorclient.utils.Utils;
 import meteordevelopment.orbit.EventHandler;
 import net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
-import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.RaycastContext;
 
@@ -104,70 +102,29 @@ public class InfiniteReach extends Module {
 
         if (mc.player.getEyePos().squaredDistanceTo(center) <= range * range) return;
 
-        Vec3d start = mc.player.getEntityPos();
-        Vec3d destination = findPosition(pos, center, hit.getPos(), start);
-        if (destination == null) return;
+        boolean teleported = ReachHelper.teleportAction(pos, hit.getPos(), () -> {
+            if (attack) {
+                mc.getNetworkHandler().sendPacket(new PlayerActionC2SPacket(
+                    PlayerActionC2SPacket.Action.START_DESTROY_BLOCK, pos, hit.getSide()));
+                mc.getNetworkHandler().sendPacket(new PlayerActionC2SPacket(
+                    PlayerActionC2SPacket.Action.STOP_DESTROY_BLOCK, pos, hit.getSide()));
+            } else {
+                mc.getNetworkHandler().sendPacket(new PlayerInteractBlockC2SPacket(Hand.MAIN_HAND, hit, 0));
+            }
+        });
 
-        for (int i = 0; i < packets.get(); i++) {
-            mc.getNetworkHandler().sendPacket(new PlayerMoveC2SPacket.OnGroundOnly(false, false));
-        }
-
-        sendMove(destination);
-
-        if (attack) {
-            mc.getNetworkHandler().sendPacket(new PlayerActionC2SPacket(
-                PlayerActionC2SPacket.Action.START_DESTROY_BLOCK, pos, hit.getSide()));
-            mc.getNetworkHandler().sendPacket(new PlayerActionC2SPacket(
-                PlayerActionC2SPacket.Action.STOP_DESTROY_BLOCK, pos, hit.getSide()));
-        } else {
-            mc.getNetworkHandler().sendPacket(new PlayerInteractBlockC2SPacket(Hand.MAIN_HAND, hit, 0));
-        }
+        if (!teleported) return;
 
         if (swing.get()) mc.player.swingHand(Hand.MAIN_HAND);
-
-        Vec3d home = start.add(0.05, 0.01, 0);
-        sendMove(start);
-        sendMove(home);
-        mc.player.setPosition(home);
-
         cooldownTicks = cooldown.get();
     }
 
-    private Vec3d findPosition(BlockPos target, Vec3d center, Vec3d hitPos, Vec3d start) {
-        Box base = mc.player.getBoundingBox();
-        double maxReach = mc.player.getBlockInteractionRange() - 0.5;
-        Vec3d best = null;
-        double bestDistance = Double.MAX_VALUE;
 
-        for (double dx = -3; dx <= 3; dx += 0.5) {
-            for (double dy = -3; dy <= 3; dy += 0.5) {
-                for (double dz = -3; dz <= 3; dz += 0.5) {
-                    Vec3d pos = new Vec3d(center.x + dx, center.y + dy, center.z + dz);
-                    if (BlockPos.ofFloored(pos.x, pos.y, pos.z).equals(target)) continue;
-                    if (pos.squaredDistanceTo(center) > maxReach * maxReach) continue;
-                    if (pos.squaredDistanceTo(start) > maxDistance.get() * maxDistance.get()) continue;
-
-                    Box box = base.offset(pos.x - start.x, pos.y - start.y, pos.z - start.z);
-                    if (!mc.world.isSpaceEmpty(mc.player, box)) continue;
-
-                    // Stay on the visible face so the teleport path stays clear.
-                    double distance = pos.squaredDistanceTo(hitPos);
-                    if (distance < bestDistance) {
-                        bestDistance = distance;
-                        best = pos;
-                    }
-                }
-            }
-        }
-
-        return best;
+    public double maxDistance() {
+        return maxDistance.get();
     }
 
-    private void sendMove(Vec3d pos) {
-        PlayerMoveC2SPacket.PositionAndOnGround packet =
-            new PlayerMoveC2SPacket.PositionAndOnGround(pos.x, pos.y, pos.z, false, false);
-
-        ((IPlayerMoveC2SPacket) packet).meteor$setTag(1337);
-        mc.getNetworkHandler().sendPacket(packet);
+    public int packets() {
+        return packets.get();
     }
 }

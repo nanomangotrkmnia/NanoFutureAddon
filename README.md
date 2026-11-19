@@ -15,6 +15,7 @@ Put the jar in your mods folder next to Meteor Client for 1.21.11.
 ## modules
 
 - `ai-assistant`: chat with a configured provider. Use `.ai <message>`; `.contextclear` resets context.
+- `auto-chunk-miner`: mines a chunk from above your head down to a target Y.
 - `auto-terraform`: clears, fills, or levels blocks around you to a target layer.
 - `ghost-blocks`: places client-side blocks that break in one hit.
 - `infinite-reach`: teleports to distant blocks, breaks or uses them, then teleports back.
@@ -30,6 +31,7 @@ TimeShift only works on 1.8 servers.
 Phase needs you to be inside a block first.
 InfiniteReach is capped at 22 blocks on vanilla.
 AutoTerraform only works within interaction range; walk to cover an area.
+AutoChunkMiner uses Baritone when installed, otherwise Reach mode only mines blocks in range.
 GhostBlocks swallows right click while active; use SneakRightClick mode to keep normal interactions.
 
 ## commands

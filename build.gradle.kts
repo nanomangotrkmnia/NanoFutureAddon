@@ -27,6 +27,9 @@ dependencies {
 
     // Meteor
     modImplementation(libs.meteor.client)
+
+    // Baritone, optional at runtime
+    modCompileOnly("meteordevelopment:baritone:1.21.10-SNAPSHOT")
 }
 
 tasks {

@@ -54,12 +54,24 @@ public class FastThrow extends Module {
     }
 
     private void nudge() {
-        if (mc.player == null || mc.getConnection() == null) return;
+        if (mc.player == null || mc.getConnection() == null || mc.player.isSpectator()) return;
 
-        double x = mc.player.getX() + xVelocity.get();
+        double offset = xVelocity.get();
+        if (offset <= 0) return;
 
-        mc.getConnection().send(new ServerboundMovePlayerPacket.Pos(
-            x, mc.player.getY(), mc.player.getZ(), mc.player.onGround(), mc.player.horizontalCollision));
+        double x = mc.player.getX();
+        double y = mc.player.getY();
+        double z = mc.player.getZ();
+        boolean onGround = mc.player.onGround();
+        boolean collision = mc.player.horizontalCollision;
+
+        for (int i = 0; i < 4; i++) sendPos(x, y, z, onGround, collision);
+        sendPos(x - offset, y, z, onGround, collision);
+        sendPos(x, y, z, onGround, collision);
+    }
+
+    private void sendPos(double x, double y, double z, boolean onGround, boolean collision) {
+        mc.getConnection().send(new ServerboundMovePlayerPacket.Pos(x, y, z, onGround, collision));
     }
 
     private boolean isThrowable(ItemStack stack) {

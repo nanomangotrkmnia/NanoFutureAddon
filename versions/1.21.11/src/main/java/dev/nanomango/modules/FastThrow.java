@@ -5,6 +5,7 @@ import meteordevelopment.meteorclient.events.entity.player.InteractItemEvent;
 import meteordevelopment.meteorclient.events.entity.player.SendMovementPacketsEvent;
 import meteordevelopment.meteorclient.events.entity.player.StoppedUsingItemEvent;
 import meteordevelopment.meteorclient.settings.DoubleSetting;
+import meteordevelopment.meteorclient.settings.IntSetting;
 import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
 import meteordevelopment.meteorclient.systems.modules.Module;
@@ -31,6 +32,16 @@ public class FastThrow extends Module {
         .build()
     );
 
+    private final Setting<Integer> bowInterval = sgGeneral.add(new IntSetting.Builder()
+        .name("bow-interval")
+        .description("Ticks between bow bursts.")
+        .defaultValue(2)
+        .range(1, 10)
+        .build()
+    );
+
+    private int bowTicks;
+
     public FastThrow() {
         super(NanoFutureAddon.CATEGORY, "fast-throw",
             "Sends a small X velocity before you release a bow or throw an item.");
@@ -47,7 +58,11 @@ public class FastThrow extends Module {
     @EventHandler
     private void onSendMovementPackets(SendMovementPacketsEvent.Post event) {
         if (mc.player == null || !mc.player.isUsingItem()) return;
-        if (isBow(mc.player.getActiveItem())) nudge();
+        if (!isBow(mc.player.getActiveItem())) return;
+
+        if (--bowTicks > 0) return;
+        bowTicks = bowInterval.get();
+        nudge();
     }
 
     @EventHandler

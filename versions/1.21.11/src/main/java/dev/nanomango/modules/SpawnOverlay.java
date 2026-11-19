@@ -1,7 +1,7 @@
 package dev.nanomango.modules;
 
 import dev.nanomango.NanoFutureAddon;
-import dev.nanomango.utils.SpawnScanner;
+import dev.nanomango.utils.SpawnScan;
 import meteordevelopment.meteorclient.events.render.Render3DEvent;
 import meteordevelopment.meteorclient.events.world.TickEvent;
 import meteordevelopment.meteorclient.renderer.ShapeMode;
@@ -18,6 +18,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class SpawnOverlay extends Module {
+    private static final int SCAN_BUDGET = 2000;
+
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
 
     private final Setting<Integer> radius = sgGeneral.add(new IntSetting.Builder()
@@ -44,11 +46,18 @@ public class SpawnOverlay extends Module {
         .build()
     );
 
-    private final SettingColor sideColor = new SettingColor(255, 80, 80, 25);
-    private final SettingColor lineColor = new SettingColor(255, 80, 80, 180);
+    private final SettingColor sideColor = new SettingColor(255, 80, 80, 15);
+    private final SettingColor lineColor = new SettingColor(255, 80, 80, 160);
 
+    private final SpawnScan scan = new SpawnScan();
     private final List<BlockPos> positions = new ArrayList<>();
+
     private int timer;
+    private int idleTicks;
+    private BlockPos lastCenter;
+    private int lastRadius;
+    private int lastVertical;
+    private int lastLight;
 
     public SpawnOverlay() {
         super(NanoFutureAddon.CATEGORY, "spawn-overlay",
@@ -57,24 +66,60 @@ public class SpawnOverlay extends Module {
 
     @Override
     public void onActivate() {
+        scan.cancel();
         positions.clear();
         timer = 0;
+        idleTicks = 0;
+        lastCenter = null;
     }
 
     @Override
     public void onDeactivate() {
+        scan.cancel();
         positions.clear();
         timer = 0;
+        idleTicks = 0;
+        lastCenter = null;
     }
 
     @EventHandler
     private void onTick(TickEvent.Pre event) {
         if (!Utils.canUpdate()) return;
-        if (--timer > 0) return;
 
-        timer = 20;
-        positions.clear();
-        positions.addAll(SpawnScanner.find(radius.get(), vertical.get(), minLight.get()));
+        if (scan.active()) {
+            if (scan.step(SCAN_BUDGET)) {
+                positions.clear();
+                positions.addAll(scan.positions());
+            }
+
+            return;
+        }
+
+        if (--timer > 0) return;
+        timer = 40;
+
+        BlockPos center = mc.player.getBlockPos();
+        int radius = this.radius.get();
+        int vertical = this.vertical.get();
+        int light = minLight.get();
+
+        boolean changed = lastCenter == null || !center.equals(lastCenter)
+            || radius != lastRadius || vertical != lastVertical || light != lastLight;
+
+        if (!changed && ++idleTicks < 200) return;
+
+        idleTicks = 0;
+        lastCenter = center.toImmutable();
+        lastRadius = radius;
+        lastVertical = vertical;
+        lastLight = light;
+
+        scan.start(center, radius, vertical, light, pos -> true);
+
+        if (scan.step(SCAN_BUDGET)) {
+            positions.clear();
+            positions.addAll(scan.positions());
+        }
     }
 
     @EventHandler
@@ -84,7 +129,7 @@ public class SpawnOverlay extends Module {
         for (BlockPos pos : positions) {
             event.renderer.box(pos.getX(), pos.getY(), pos.getZ(),
                 pos.getX() + 1, pos.getY() + 1, pos.getZ() + 1,
-                sideColor, lineColor, ShapeMode.Both, 0);
+                sideColor, lineColor, ShapeMode.Lines, 0);
         }
     }
 

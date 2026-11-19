@@ -2,6 +2,7 @@ package dev.nanomango.modules;
 
 import dev.nanomango.NanoFutureAddon;
 import dev.nanomango.utils.ReachHelper;
+import dev.nanomango.utils.SpawnScan;
 import dev.nanomango.utils.SpawnScanner;
 import meteordevelopment.meteorclient.events.render.Render3DEvent;
 import meteordevelopment.meteorclient.events.world.TickEvent;
@@ -19,6 +20,7 @@ import meteordevelopment.meteorclient.utils.world.BlockUtils;
 import meteordevelopment.orbit.EventHandler;
 import net.minecraft.item.Items;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -92,8 +94,11 @@ public class AutoTorch extends Module {
     private final SettingColor sideColor = new SettingColor(255, 80, 80, 25);
     private final SettingColor lineColor = new SettingColor(255, 80, 80, 180);
 
+    private static final int SCAN_BUDGET = 2000;
+
     private final List<BlockPos> targets = new ArrayList<>();
     private final List<BlockPos> renderPositions = new ArrayList<>();
+    private final SpawnScan scan = new SpawnScan();
 
     private int timer;
     private int scanTimer;
@@ -106,6 +111,7 @@ public class AutoTorch extends Module {
 
     @Override
     public void onActivate() {
+        scan.cancel();
         targets.clear();
         renderPositions.clear();
         timer = 0;
@@ -115,6 +121,7 @@ public class AutoTorch extends Module {
 
     @Override
     public void onDeactivate() {
+        scan.cancel();
         targets.clear();
         renderPositions.clear();
         timer = 0;
@@ -130,13 +137,6 @@ public class AutoTorch extends Module {
             return;
         }
 
-        if (--scanTimer <= 0 || targets.isEmpty()) {
-            scan();
-            scanTimer = 20;
-
-            if (targets.isEmpty()) return;
-        }
-
         FindItemResult torch = InvUtils.findInHotbar(Items.TORCH);
         if (!torch.found()) {
             if (!warned) {
@@ -149,6 +149,27 @@ public class AutoTorch extends Module {
         }
 
         warned = false;
+
+        if (targets.isEmpty()) {
+            if (scan.active()) {
+                if (!scan.step(SCAN_BUDGET)) return;
+
+                fillTargets();
+                if (targets.isEmpty()) {
+                    scanTimer = 20;
+                    return;
+                }
+            } else {
+                if (scanTimer-- > 0) return;
+
+                scan.start(mc.player.getBlockPos(), radius.get(), vertical.get(), minLight.get(),
+                    pos -> ReachHelper.inReach(pos, useInfiniteReach.get()));
+                scanTimer = 20;
+
+                if (scan.step(SCAN_BUDGET)) fillTargets();
+                return;
+            }
+        }
 
         int placed = 0;
         Iterator<BlockPos> iterator = targets.iterator();
@@ -174,35 +195,20 @@ public class AutoTorch extends Module {
         timer = delay.get();
     }
 
-    private void scan() {
+    private void fillTargets() {
         targets.clear();
         renderPositions.clear();
 
-        BlockPos center = mc.player.getBlockPos();
-        int radius = this.radius.get();
-        int vertical = this.vertical.get();
-        int radiusSquared = radius * radius;
+        List<BlockPos> found = scan.positions();
 
-        for (int x = -radius; x <= radius; x++) {
-            for (int z = -radius; z <= radius; z++) {
-                if (x * x + z * z > radiusSquared) continue;
-
-                for (int y = -vertical; y <= vertical; y++) {
-                    BlockPos pos = center.add(x, y, z);
-
-                    if (!SpawnScanner.isSpawnable(pos, minLight.get())) continue;
-                    if (render.get() && renderPositions.size() < 512) renderPositions.add(pos);
-                    if (!ReachHelper.inReach(pos, useInfiniteReach.get())) continue;
-
-                    targets.add(pos);
-                }
-            }
+        if (render.get()) {
+            for (int i = 0; i < Math.min(256, found.size()); i++) renderPositions.add(found.get(i));
         }
 
-        targets.sort(Comparator.comparingDouble(pos ->
-            mc.player.getEyePos().squaredDistanceTo(pos.toCenterPos())));
+        targets.addAll(found);
 
-        if (targets.size() > 512) targets.subList(512, targets.size()).clear();
+        Vec3d eye = mc.player.getEyePos();
+        targets.sort(Comparator.comparingDouble(pos -> eye.squaredDistanceTo(pos.toCenterPos())));
     }
 
     @EventHandler
@@ -212,7 +218,7 @@ public class AutoTorch extends Module {
         for (BlockPos pos : renderPositions) {
             event.renderer.box(pos.getX(), pos.getY(), pos.getZ(),
                 pos.getX() + 1, pos.getY() + 1, pos.getZ() + 1,
-                sideColor, lineColor, ShapeMode.Both, 0);
+                sideColor, lineColor, ShapeMode.Lines, 0);
         }
     }
 

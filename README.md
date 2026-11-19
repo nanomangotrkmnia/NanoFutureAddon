@@ -36,6 +36,7 @@ AI assistant API keys are masked in the settings window.
 TimeShift only works on 1.8 servers.
 Phase needs you to be inside a block first.
 InfiniteReach is capped at 22 blocks on vanilla.
+`instant-break` has a `fists` toggle on 26.3 for tool-free packet mining.
 AutoTerraform only works within interaction range; walk to cover an area.
 AutoChunkMiner uses Baritone when installed, otherwise Reach mode only mines blocks in range.
 AutoChunkMiner and AutoTerraform use InfiniteReach for blocks beyond normal reach; vanilla still caps normal reach at about 5.5 blocks.

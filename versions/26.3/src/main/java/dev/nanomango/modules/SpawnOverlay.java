@@ -46,8 +46,8 @@ public class SpawnOverlay extends Module {
         .build()
     );
 
-    private final SettingColor sideColor = new SettingColor(255, 80, 80, 15);
-    private final SettingColor lineColor = new SettingColor(255, 80, 80, 160);
+    private final SettingColor sideColor = new SettingColor(255, 80, 80, 55);
+    private final SettingColor lineColor = new SettingColor(255, 100, 100, 230);
 
     private final SpawnScan scan = new SpawnScan();
     private final List<BlockPos> positions = new ArrayList<>();
@@ -98,7 +98,7 @@ public class SpawnOverlay extends Module {
         if (--timer > 0) return;
         timer = 40;
 
-        BlockPos center = mc.player.blockPosition();
+        BlockPos center = scanCenter();
         int radius = this.radius.get();
         int vertical = this.vertical.get();
         int light = minLight.get();
@@ -122,6 +122,19 @@ public class SpawnOverlay extends Module {
         }
     }
 
+    private BlockPos scanCenter() {
+        BlockPos player = mc.player.blockPosition();
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos(player.getX(), player.getY(), player.getZ());
+        int bottom = mc.level.getMinY();
+
+        while (pos.getY() > bottom
+            && mc.level.getBlockState(pos).getCollisionShape(mc.level, pos).isEmpty()) {
+            pos.setY(pos.getY() - 1);
+        }
+
+        return pos.immutable();
+    }
+
     @EventHandler
     private void onRender(Render3DEvent event) {
         if (!Utils.canUpdate()) return;
@@ -129,7 +142,7 @@ public class SpawnOverlay extends Module {
         for (BlockPos pos : positions) {
             event.renderer.box(pos.getX(), pos.getY(), pos.getZ(),
                 pos.getX() + 1, pos.getY() + 1, pos.getZ() + 1,
-                sideColor, lineColor, ShapeMode.Lines, 0);
+                sideColor, lineColor, ShapeMode.Both, 0);
         }
     }
 

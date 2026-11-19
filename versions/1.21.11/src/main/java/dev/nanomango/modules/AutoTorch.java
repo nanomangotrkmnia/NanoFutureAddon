@@ -91,8 +91,8 @@ public class AutoTorch extends Module {
         .build()
     );
 
-    private final SettingColor sideColor = new SettingColor(255, 80, 80, 25);
-    private final SettingColor lineColor = new SettingColor(255, 80, 80, 180);
+    private final SettingColor sideColor = new SettingColor(255, 80, 80, 55);
+    private final SettingColor lineColor = new SettingColor(255, 100, 100, 230);
 
     private static final int SCAN_BUDGET = 2000;
 
@@ -218,7 +218,7 @@ public class AutoTorch extends Module {
         for (BlockPos pos : renderPositions) {
             event.renderer.box(pos.getX(), pos.getY(), pos.getZ(),
                 pos.getX() + 1, pos.getY() + 1, pos.getZ() + 1,
-                sideColor, lineColor, ShapeMode.Lines, 0);
+                sideColor, lineColor, ShapeMode.Both, 0);
         }
     }
 

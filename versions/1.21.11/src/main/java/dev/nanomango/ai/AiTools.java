@@ -57,6 +57,15 @@ public final class AiTools {
         add("find_entities", "Find nearby entities by kind.",
             schema(entities), SurroundingsTools::findEntities);
 
+        add("get_scoreboard", "Read the sidebar objective and its scores.",
+            empty, AwarenessTools::scoreboard);
+
+        add("get_open_container", "Read the items in the currently open container.",
+            empty, AwarenessTools::container);
+
+        add("get_target", "Read the entity or block under the crosshair.",
+            empty, AwarenessTools::target);
+
         JsonObject remember = new JsonObject();
         remember.add("key", text("Note name, up to 64 characters."));
         remember.add("value", text("Note text, up to 500 characters."));

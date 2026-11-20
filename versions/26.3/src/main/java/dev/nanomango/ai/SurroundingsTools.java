@@ -50,6 +50,7 @@ public final class SurroundingsTools {
         out.addProperty("standing_on", blockId(mc.level.getBlockState(below)));
         out.addProperty("reach", round(ReachHelper.serverReach()));
         out.addProperty("baritone", BaritoneBridge.available());
+        AwarenessTools.state(out);
         return out.toString();
     }
 
@@ -225,6 +226,7 @@ public final class SurroundingsTools {
         out.addProperty("breakable", !state.isAir() && BlockUtils.canBreak(pos, state));
         out.addProperty("in_reach", ReachHelper.inServerReach(pos));
         out.addProperty("distance", round(Math.sqrt(mc.player.getEyePosition().distanceToSqr(Vec3.atCenterOf(pos)))));
+        out.addProperty("light", mc.level.getMaxLocalRawBrightness(pos));
         out.addProperty("relative", relative);
         out.add("defaults", AiTools.defaults(arguments, "relative"));
         return out.toString();

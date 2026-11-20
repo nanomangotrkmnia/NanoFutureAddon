@@ -17,6 +17,12 @@ public final class AiTools {
         add("get_state", "Get player position, dimension, health, food, rotation and held items. Call before acting.",
             empty, SurroundingsTools::state);
 
+        add("get_players", "List tab list players with ping, game mode and team.",
+            empty, PlayerTools::players);
+
+        add("get_locator", "List locator bar dots with resolved names, side and distance.",
+            empty, PlayerTools::locator);
+
         JsonObject scan = new JsonObject();
         scan.add("radius", number("Horizontal radius in blocks.", 1, 32));
         add("scan_area", "Summarize nearby source and flowing fluids, ores, containers and entities.",

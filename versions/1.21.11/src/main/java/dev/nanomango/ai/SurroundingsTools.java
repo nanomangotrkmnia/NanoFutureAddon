@@ -44,6 +44,7 @@ public final class SurroundingsTools {
         out.addProperty("selected_slot", mc.player.getInventory().getSelectedSlot());
         out.add("held", stack(mc.player.getMainHandStack(), -1));
         out.add("offhand", stack(mc.player.getOffHandStack(), -1));
+        out.add("user", PlayerTools.self());
 
         BlockPos below = mc.player.getBlockPos().down();
         out.addProperty("standing_on", blockId(mc.world.getBlockState(below)));

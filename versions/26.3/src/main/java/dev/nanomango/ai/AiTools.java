@@ -66,6 +66,94 @@ public final class AiTools {
         add("get_target", "Read the entity or block under the crosshair.",
             empty, AwarenessTools::target);
 
+        add("list_modules", "List registered modules and whether they are active.",
+            empty, ModuleTools::list);
+
+        JsonObject module = new JsonObject();
+        module.add("name", text("Module name."));
+        add("get_module", "Read one module's settings.",
+            schema(module, "name"), ModuleTools::get);
+
+        JsonObject setModule = new JsonObject();
+        setModule.add("name", text("Module name."));
+        setModule.add("enabled", bool("Turn the module on or off."));
+        add("set_module", "Turn a module on or off.",
+            schema(setModule, "name", "enabled"), ModuleTools::set);
+
+        JsonObject setSetting = new JsonObject();
+        setSetting.add("module", text("Module name."));
+        setSetting.add("setting", text("Setting name."));
+        setSetting.add("value", text("New value as text."));
+        add("set_setting", "Change one module setting.",
+            schema(setSetting, "module", "setting", "value"), ModuleTools::setSetting);
+
+        JsonObject waypoint = new JsonObject();
+        waypoint.add("name", text("Waypoint name."));
+        add("save_waypoint", "Save your current block position as a named waypoint.",
+            schema(waypoint, "name"), WaypointTools::save);
+        add("list_waypoints", "List saved waypoints with position and distance.",
+            empty, WaypointTools::list);
+        add("goto_waypoint", "Start a Baritone path to a saved waypoint.",
+            schema(waypoint, "name"), WaypointTools::gotoWaypoint);
+
+        JsonObject entity = new JsonObject();
+        entity.add("name", text("Entity or player name, or an entity type id."));
+        add("get_entity", "Find up to five nearby entities by name or type.",
+            schema(entity, "name"), AgentTools::entity);
+
+        JsonObject findItem = new JsonObject();
+        findItem.add("item", text("Item id such as minecraft:diamond."));
+        add("find_item", "Find an item in your inventory or the open container.",
+            schema(findItem, "item"), AgentTools::findItem);
+
+        JsonObject follow = new JsonObject();
+        follow.add("name", text("Player or entity name."));
+        add("baritone_follow", "Follow a player or entity with Baritone.",
+            schema(follow, "name"), AgentTools::baritoneFollow);
+
+        JsonObject mine = new JsonObject();
+        mine.add("block", text("Block id such as minecraft:diamond_ore."));
+        add("baritone_mine", "Use Baritone's mine process for a block type.",
+            schema(mine, "block"), AgentTools::baritoneMine);
+
+        JsonObject look = new JsonObject();
+        look.add("x", number("X coordinate.", -30000000, 30000000));
+        look.add("y", number("Y coordinate.", -64, 320));
+        look.add("z", number("Z coordinate.", -30000000, 30000000));
+        add("look_at", "Turn the player toward a block without moving.",
+            schema(look, "x", "y", "z"), AgentTools::lookAt);
+
+        JsonObject use = new JsonObject();
+        use.add("slot", number("Hotbar slot 0-8.", 0, 8));
+        add("use_item", "Select a hotbar slot and use it. Needs allow-actions.",
+            schema(use, "slot"), AgentTools::useItem);
+
+        JsonObject place = new JsonObject();
+        place.add("x", number("X coordinate.", -30000000, 30000000));
+        place.add("y", number("Y coordinate.", -64, 320));
+        place.add("z", number("Z coordinate.", -30000000, 30000000));
+        place.add("item", text("Block item id in the hotbar or offhand."));
+        add("place_block", "Place a block at a position. Needs allow-actions.",
+            schema(place, "x", "y", "z", "item"), AgentTools::placeBlock);
+
+        JsonObject mineBlock = new JsonObject();
+        mineBlock.add("x", number("X coordinate.", -30000000, 30000000));
+        mineBlock.add("y", number("Y coordinate.", -64, 320));
+        mineBlock.add("z", number("Z coordinate.", -30000000, 30000000));
+        add("mine_block", "Break one block. Needs allow-actions.",
+            schema(mineBlock, "x", "y", "z"), AgentTools::mineBlock);
+
+        JsonObject drop = new JsonObject();
+        drop.add("slot", number("Hotbar slot 0-8.", 0, 8));
+        drop.add("all", bool("Drop the whole stack. Default false."));
+        add("drop_item", "Drop from a hotbar slot. Needs allow-actions.",
+            schema(drop, "slot"), AgentTools::dropItem);
+
+        JsonObject chat = new JsonObject();
+        chat.add("message", text("Chat text, no leading slash."));
+        add("send_chat", "Send a chat message. Needs allow-actions.",
+            schema(chat, "message"), AgentTools::sendChat);
+
         JsonObject remember = new JsonObject();
         remember.add("key", text("Note name, up to 64 characters."));
         remember.add("value", text("Note text, up to 500 characters."));

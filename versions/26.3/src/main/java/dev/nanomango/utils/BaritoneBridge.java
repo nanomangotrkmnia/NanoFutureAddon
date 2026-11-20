@@ -10,6 +10,8 @@ public final class BaritoneBridge {
     private static Method gotoXZ;
     private static Method isPathing;
     private static Method status;
+    private static Method follow;
+    private static Method mine;
 
     static {
         try {
@@ -21,6 +23,8 @@ public final class BaritoneBridge {
             gotoXZ = type.getMethod("gotoXZ", int.class, int.class);
             isPathing = type.getMethod("isPathing");
             status = type.getMethod("status");
+            follow = type.getMethod("follow", String.class);
+            mine = type.getMethod("mine", String.class);
         } catch (Throwable ignored) {
             clearArea = null;
             isBusy = null;
@@ -29,6 +33,8 @@ public final class BaritoneBridge {
             gotoXZ = null;
             isPathing = null;
             status = null;
+            follow = null;
+            mine = null;
         }
     }
 
@@ -92,6 +98,24 @@ public final class BaritoneBridge {
             return (boolean) isPathing.invoke(null);
         } catch (ReflectiveOperationException ignored) {
             return false;
+        }
+    }
+
+    public static void follow(String name) {
+        if (follow == null) return;
+
+        try {
+            follow.invoke(null, name);
+        } catch (ReflectiveOperationException ignored) {
+        }
+    }
+
+    public static void mine(String block) {
+        if (mine == null) return;
+
+        try {
+            mine.invoke(null, block);
+        } catch (ReflectiveOperationException ignored) {
         }
     }
 

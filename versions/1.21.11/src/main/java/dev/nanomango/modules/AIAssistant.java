@@ -22,6 +22,7 @@ import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
 import meteordevelopment.meteorclient.settings.StringSetting;
 import meteordevelopment.meteorclient.systems.modules.Module;
+import meteordevelopment.meteorclient.systems.modules.Modules;
 import meteordevelopment.meteorclient.utils.player.ChatUtils;
 import meteordevelopment.orbit.EventHandler;
 import net.minecraft.text.Text;
@@ -75,6 +76,9 @@ public class AIAssistant extends Module {
         - get_block {"x":int,"y":int,"z":int,"relative":bool default true} -> pos, id, air, replaceable, block_entity, hardness (-1 means unbreakable), fluid id or empty, breakable, in_reach (normal server reach, not InfiniteReach), light (0-15), distance. Relative coordinates are offsets from the player block position, so y=0 is the feet block; use relative=false for world coordinates. x, y and z are required. Example: {"x":0,"y":-2,"z":3}
         - get_inventory {"main":bool default false} -> selected slot, non-empty hotbar stacks, offhand, all four armor slots (empty slots are marked), and main inventory when true. Stacks include item, name, count and durability remaining. Example: {"main":true}
         - find_entities {"kind":"player|hostile|animal|mob|all" default mob,"radius":1-64 default 24,"limit":1-32 default 10} -> total count and up to limit entities within player Y-8 to Y+8, with type, name, pos, distance, player, hostile, health. hostile means the hostile mob class; animal is living non-player and non-hostile; mob is living non-player; all includes items. Unknown kinds return an error listing valid values. Example: {"kind":"hostile","radius":16}
+
+        AGENT TOOLS
+        You can inspect and change modules and settings, save and use named waypoints, find entities and items, follow players, mine by block type, and look at blocks. With allow-actions on, you can use items, place or break blocks, drop items and send chat. Act only when the user asks. Never send commands.
 
         MEMORY TOOLS
         - remember {"key":"required","value":"required"} -> save a note for this server. Up to 100 notes, key 64 characters, value 500 characters. Use for base coords, stashes and projects.
@@ -246,6 +250,14 @@ public class AIAssistant extends Module {
         .build()
     );
 
+    private final Setting<Boolean> allowActions = sgTools.add(new BoolSetting.Builder()
+        .name("allow-actions")
+        .description("Lets the model use items, place or mine blocks, drop items and send chat.")
+        .defaultValue(false)
+        .visible(tools::get)
+        .build()
+    );
+
     private final List<AiMessage> messages = new ArrayList<>();
     private boolean pending;
     private int contextVersion;
@@ -354,6 +366,11 @@ public class AIAssistant extends Module {
                 });
             }
         });
+    }
+
+    public static boolean actionsAllowed() {
+        AIAssistant assistant = Modules.get().get(AIAssistant.class);
+        return assistant != null && assistant.allowActions.get();
     }
 
     public void clearContext() {

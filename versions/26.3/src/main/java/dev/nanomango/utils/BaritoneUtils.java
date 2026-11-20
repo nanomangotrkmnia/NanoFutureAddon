@@ -32,6 +32,15 @@ public final class BaritoneUtils {
         return BaritoneAPI.getProvider().getPrimaryBaritone().getPathingBehavior().isPathing();
     }
 
+    public static void follow(String name) {
+        BaritoneAPI.getProvider().getPrimaryBaritone().getFollowProcess()
+            .follow(entity -> entity.getName().getString().equalsIgnoreCase(name));
+    }
+
+    public static void mine(String block) {
+        BaritoneAPI.getProvider().getPrimaryBaritone().getMineProcess().mineByName(1, block);
+    }
+
     public static String status() {
         IBaritone baritone = BaritoneAPI.getProvider().getPrimaryBaritone();
         Goal goal = baritone.getCustomGoalProcess().getGoal();

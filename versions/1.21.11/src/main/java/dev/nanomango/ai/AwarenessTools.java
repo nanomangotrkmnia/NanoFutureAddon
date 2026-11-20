@@ -133,22 +133,8 @@ public final class AwarenessTools {
         }
 
         if (hit instanceof EntityHitResult entityHit) {
-            Entity entity = entityHit.getEntity();
-
-            JsonObject out = new JsonObject();
+            JsonObject out = entity(entityHit.getEntity());
             out.addProperty("type", "entity");
-            out.addProperty("name", entity.getName().getString());
-            out.addProperty("entity_type", Registries.ENTITY_TYPE.getId(entity.getType()).toString());
-            out.addProperty("distance", round(entity.distanceTo(mc.player)));
-            out.addProperty("player", entity instanceof PlayerEntity);
-
-            if (entity instanceof LivingEntity living) {
-                out.addProperty("health", round(living.getHealth()));
-                out.addProperty("max_health", round(living.getMaxHealth()));
-                out.add("effects", effects(living.getStatusEffects()));
-                out.add("equipment", equipment(living));
-            }
-
             return out.toString();
         }
 
@@ -164,6 +150,23 @@ public final class AwarenessTools {
         }
 
         return "{\"type\":\"none\"}";
+    }
+
+    public static JsonObject entity(Entity entity) {
+        JsonObject out = new JsonObject();
+        out.addProperty("name", entity.getName().getString());
+        out.addProperty("entity_type", Registries.ENTITY_TYPE.getId(entity.getType()).toString());
+        out.addProperty("distance", round(entity.distanceTo(mc.player)));
+        out.addProperty("player", entity instanceof PlayerEntity);
+
+        if (entity instanceof LivingEntity living) {
+            out.addProperty("health", round(living.getHealth()));
+            out.addProperty("max_health", round(living.getMaxHealth()));
+            out.add("effects", effects(living.getStatusEffects()));
+            out.add("equipment", equipment(living));
+        }
+
+        return out;
     }
 
     public static void state(JsonObject out) {

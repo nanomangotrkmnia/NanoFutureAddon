@@ -91,11 +91,14 @@ public final class AwarenessTools {
 
         out.addProperty("open", true);
 
+        String title = "";
         if (mc.currentScreen instanceof HandledScreen<?> screen) {
-            out.addProperty("title", screen.getTitle().getString());
+            title = screen.getTitle().getString();
+            out.addProperty("title", title);
         }
 
         JsonArray items = new JsonArray();
+        JsonArray storedItems = new JsonArray();
         int count = 0;
         int playerStart = handler.slots.size() - 36;
 
@@ -114,9 +117,16 @@ public final class AwarenessTools {
                 item.addProperty("name", stack.getName().getString());
                 item.addProperty("count", stack.getCount());
                 items.add(item);
+
+                if (i < playerStart) storedItems.add(item.deepCopy());
             }
         }
 
+        String dimension = mc.world.getRegistryKey().getValue().toString();
+        BlockPos containerPos = ContainerTracker.lastPos();
+        if (containerPos == null || !dimension.equals(ContainerTracker.lastDimension())) containerPos = null;
+
+        out.addProperty("stored", ContainerMemory.record(containerPos, dimension, title, storedItems));
         out.addProperty("count", count);
         out.addProperty("truncated", count > MAX_CONTAINER);
         out.add("items", items);

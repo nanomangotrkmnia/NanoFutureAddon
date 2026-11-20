@@ -1,5 +1,7 @@
 package dev.nanomango;
 
+import dev.nanomango.ai.ChatLog;
+import dev.nanomango.ai.ContainerTracker;
 import dev.nanomango.commands.AiCommand;
 import dev.nanomango.commands.AiToolCommand;
 import dev.nanomango.commands.ContextClearCommand;
@@ -17,6 +19,7 @@ import dev.nanomango.modules.Reminder;
 import dev.nanomango.modules.SpawnOverlay;
 import dev.nanomango.modules.TimeShift;
 import com.mojang.logging.LogUtils;
+import meteordevelopment.meteorclient.MeteorClient;
 import meteordevelopment.meteorclient.addons.MeteorAddon;
 import meteordevelopment.meteorclient.commands.Commands;
 import meteordevelopment.meteorclient.systems.modules.Category;
@@ -48,6 +51,9 @@ public class NanoFutureAddon extends MeteorAddon {
         Commands.add(new AiCommand());
         Commands.add(new AiToolCommand());
         Commands.add(new ContextClearCommand());
+
+        MeteorClient.EVENT_BUS.subscribe(new ChatLog());
+        MeteorClient.EVENT_BUS.subscribe(new ContainerTracker());
     }
 
     @Override

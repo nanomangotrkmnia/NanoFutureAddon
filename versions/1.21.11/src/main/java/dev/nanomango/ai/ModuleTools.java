@@ -127,6 +127,7 @@ public final class ModuleTools {
     private static boolean sensitive(String name) {
         String lower = name.toLowerCase(Locale.ROOT);
         return lower.contains("key") || lower.contains("token")
-            || lower.contains("password") || lower.contains("secret");
+            || lower.contains("password") || lower.contains("secret")
+            || lower.equals("allow-actions");
     }
 }

@@ -20,6 +20,7 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.resources.Identifier;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -110,6 +111,14 @@ public final class AgentTools {
             }
         }
 
+        JsonArray memory = ContainerMemory.find(id, MAX_ITEM_RESULTS - items.size());
+        for (int i = 0; i < memory.size(); i++) {
+            JsonObject match = memory.get(i).getAsJsonObject();
+            found++;
+            total += match.has("count") ? match.get("count").getAsInt() : 0;
+            items.add(match);
+        }
+
         JsonObject out = new JsonObject();
         out.addProperty("item", id);
         out.addProperty("count", found);
@@ -136,16 +145,32 @@ public final class AgentTools {
 
     public static String baritoneMine(JsonObject arguments) {
         if (!BaritoneBridge.available()) return AiTools.error("Baritone is not available.");
-        if (!AiTools.present(arguments, "block")) return AiTools.error("missing required argument \"block\"");
 
-        String block = normalize(AiTools.string(arguments, "block", "").trim());
-        if (block.isEmpty()) return AiTools.error("block must not be blank");
+        String error = AiTools.intError(arguments, "x", "y", "z");
+        if (error != null) return AiTools.error(error);
 
+        int x = AiTools.integer(arguments, "x", 0, -30000000, 30000000);
+        int y = AiTools.integer(arguments, "y", 0, -64, 320);
+        int z = AiTools.integer(arguments, "z", 0, -30000000, 30000000);
+        BlockPos pos = new BlockPos(x, y, z);
+
+        String block = AiTools.string(arguments, "block", "").trim();
+        if (block.isEmpty()) {
+            BlockState state = mc.level.getBlockState(pos);
+            if (state.isAir()) return AiTools.error("no block at that position");
+
+            block = BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString();
+        }
+
+        block = normalize(block);
         BaritoneBridge.mine(block);
 
         JsonObject out = new JsonObject();
         out.addProperty("status", "started");
         out.addProperty("block", block);
+        out.addProperty("x", x);
+        out.addProperty("y", y);
+        out.addProperty("z", z);
         return out.toString();
     }
 
@@ -209,7 +234,7 @@ public final class AgentTools {
         if (identifier == null) return AiTools.error("invalid item id \"" + itemName + "\"");
 
         Item item = BuiltInRegistries.ITEM.getValue(identifier);
-        if (item == Items.AIR) return AiTools.error("unknown item \"" + itemName + "\"");
+        if (item == null || item == Items.AIR) return AiTools.error("unknown item \"" + itemName + "\"");
 
         FindItemResult found = InvUtils.findInHotbar(item);
         if (!found.found()) return AiTools.error("item is not in the hotbar or offhand");
